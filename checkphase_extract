@@ -1,0 +1,134 @@
+#!/bin/bash
+
+#
+#  Copyright (C) 2018-2023 by Lars Wienbrandt,
+#  Institute of Clinical Molecular Biology, Kiel University
+#  
+#  This file is part of Checkphase.
+#  
+#  Checkphase is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  
+#  Checkphase is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with Checkphase. If not, see <https://www.gnu.org/licenses/>.
+#
+
+# extracts information from checkphase summary reports
+if [[ $# == 0 ]]; then
+  echo "Usage: checkphase_extract <list of checkphase summary files>"
+  exit 1
+fi
+
+awk 'BEGIN {
+QSAMPLES="Query samples:"
+QHAPS="Query haploid samples:"
+
+REFVARS="Reference variants:"
+QVARS="Query variants:"
+COMMVARS="Common variants:"
+CHECKVARS="Checked variants:"
+
+REFALTSWAPS="Ref/Alt swaps:"
+STRANDFLIPS="Strand flips:"
+REFALTSTRAND="Ref/Alt + Strand flip:"
+
+GTERRTOTAL="Total genotype errors:"
+GTERRMIN="Minimum genotype errors:"
+GTERRMAX="Maximum genotype errors:"
+GTERRAV="Average gt err per sample:"
+GTERRRATEMIN="Minimum gt error rate:"
+GTERRRATEMAX="Maximum gt error rate:"
+GTERRRATEAV="Average gt error rate:"
+GERDEV="Standard GER deviation:"
+GERVAR="GER variance:"
+
+SWERRTOTAL="Total switch errors:"
+SWERRMIN="Minimum switch errors:"
+SWERRMAX="Maximum switch errors:"
+SWERRAV="Average sw err per sample:"
+SWERRRATEMIN="Minimum sw error rate:"
+SWERRRATEMAX="Maximum sw error rate:"
+SWERRRATEAV="Average sw error rate:"
+SERDEV="Standard SER deviation:"
+SERVAR="SER variance:"
+SWERRFREETGT="Switch error free targets:"
+SWERRMATPAT="Mat/Pat switches:"
+}
+
+/Query samples:/{QSAMPLES=(QSAMPLES "," $5)}
+/Haploid query samples:/{QHAPS=(QHAPS "," $4)}
+
+/Reference variants:/{REFVARS=(REFVARS "," $3)}
+/Query variants:/{QVARS=(QVARS "," $3)}
+/Common variants:/{COMMVARS=(COMMVARS "," $3)}
+/Checked variants:/{CHECKVARS=(CHECKVARS "," $3)}
+
+/Ref\/Alt swaps:/{REFALTSWAPS=(REFALTSWAPS "," $3)}
+/Strand flips:/{STRANDFLIPS=(STRANDFLIPS "," $3)}
+/Ref\/Alt \+ Strand flip:/{REFALTSTRAND=(REFALTSTRAND "," $5)}
+
+/Total genotype errors:/{GTERRTOTAL=(GTERRTOTAL "," $4)}
+/Minimum genotype errors:/{GTERRMIN=(GTERRMIN "," $4)}
+/Maximum genotype errors:/{GTERRMAX=(GTERRMAX "," $4)}
+/Average gt err per sample:/{GTERRAV=(GTERRAV "," $6)}
+/Minimum gt error rate:/{GTERRRATEMIN=(GTERRRATEMIN "," $5)}
+/Maximum gt error rate:/{GTERRRATEMAX=(GTERRRATEMAX "," $5)}
+/Average gt error rate:/{GTERRRATEAV=(GTERRRATEAV "," $5)}
+/Standard GER deviation:/{GERDEV=(GERDEV "," $4)}
+/GER variance:/{GERVAR=(GERVAR "," $3)}
+
+/Total switch errors:/{SWERRTOTAL=(SWERRTOTAL "," $4)}
+/Minimum switch errors:/{SWERRMIN=(SWERRMIN "," $4)}
+/Maximum switch errors:/{SWERRMAX=(SWERRMAX "," $4)}
+/Average sw err per sample:/{SWERRAV=(SWERRAV "," $6)}
+/Minimum sw error rate:/{SWERRRATEMIN=(SWERRRATEMIN "," $5)}
+/Maximum sw error rate:/{SWERRRATEMAX=(SWERRRATEMAX "," $5)}
+/Average sw error rate:/{SWERRRATEAV=(SWERRRATEAV "," $5)}
+/Standard SER deviation:/{SERDEV=(SERDEV "," $4)}
+/SER variance:/{SERVAR=(SERVAR "," $3)}
+/Switch error free targets:/{SWERRFREETGT=(SWERRFREETGT "," $5)}
+/Mat\/Pat switches:/{SWERRMATPAT=(SWERRMATPAT "," $3)}
+
+END {
+print QSAMPLES
+print QHAPS
+
+print REFVARS
+print QVARS
+print COMMVARS
+print CHECKVARS
+
+print GTERRTOTAL
+print GTERRMIN
+print GTERRMAX
+print GTERRAV
+print GTERRRATEMIN
+print GTERRRATEMAX
+print GTERRRATEAV
+print GERDEV
+print GERVAR
+
+print SWERRTOTAL
+print SWERRMIN
+print SWERRMAX
+print SWERRAV
+print SWERRRATEMIN
+print SWERRRATEMAX
+print SWERRRATEAV
+print SERDEV
+print SERVAR
+print SWERRFREETGT
+print SWERRMATPAT
+
+print REFALTSWAPS
+print STRANDFLIPS
+print REFALTSTRAND
+
+}' $@
