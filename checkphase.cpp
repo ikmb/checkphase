@@ -1,5 +1,5 @@
 /*
- *    Copyright (C) 2018-2023 by Lars Wienbrandt,
+ *    Copyright (C) 2018-2025 by Lars Wienbrandt,
  *    Institute of Clinical Molecular Biology, Kiel University
  *
  *    This file is part of Checkphase.
@@ -70,14 +70,24 @@ inline size_t getNumVariantsFromIndex(const string &vcffilename) {
     }
 
     int nseq;
-    // just need this to get the number of sequences, so we can cleanup afterwards immediately
+    // get the number and names of sequences stored in the target file
     const char** seq = tbx ? tbx_seqnames(tbx, &nseq) : bcf_index_seqnames(idx, hdr, &nseq);
-    free(seq);
+    // we only pick the first sequence that fits the convention, i.e. a number or literals optionally preceding with "chr" (but no special chars such as "_", ".", ...) and nrecords > 0
     for (int i = 0; i < nseq; i++) {
         uint64_t nrecords, unmapped;
-        hts_idx_get_stat(tbx ? tbx->idx : idx, i, &nrecords, &unmapped);
-        numvars += nrecords;
+        string seqstring(seq[i]);
+//        if (seqstring.substr(0,3).compare("chr") == 0) // seqname starts with "chr"
+//            seqstring = seqstring.substr(3);
+        if (seqstring.find_first_not_of("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") == string::npos) { // only number or literals
+            hts_idx_get_stat(tbx ? tbx->idx : idx, i, &nrecords, &unmapped);
+//            cerr << "seq: " << i << " seqname: " << seq[i] << " nrecords: " << nrecords << " unmapped: " << unmapped << endl;
+            if (nrecords) {
+                numvars = nrecords;
+                break;
+            }
+        }
     }
+    free(seq); // allocated by HTSlib
 
     hts_close(file);
     bcf_hdr_destroy(hdr);
@@ -208,8 +218,8 @@ int main(int argc, char *argv[]) {
     cout << "  Query samples:                 Nquery = " << Nquery << endl;
     cout << endl;
 
-    // extract common samples (common samples have to be in the same order! all query samples have to be in the reference!)
-    vector<size_t> map2ref(Nquery); // index mapping for common samples from query to reference
+    // extract shared samples (shared samples have to be in the same order! all query samples have to be in the reference!)
+    vector<size_t> map2ref(Nquery); // index mapping for shared samples from query to reference
     {
         size_t q = 0;
         for (size_t r = 0; r < Nref && q < Nquery; r++) {
@@ -226,9 +236,9 @@ int main(int argc, char *argv[]) {
 
     cout << "Passed samples check." << endl;
 
-    cout << "Checking common variants for phase and genotype errors..." << flush;
+    cout << "Checking shared variants for phase and genotype errors..." << flush;
 
-    size_t Mcommon = 0;    // common variants
+    size_t Mshared = 0;    // shared variants
     size_t Mref = 0; // reference variants
     size_t Mq = 0;   // query variants
 
@@ -263,28 +273,32 @@ int main(int argc, char *argv[]) {
     size_t Nqhap = 0;
     bool havedosages = false;
 
-    while (bcf_sr_next_line(sr)) { // read data SNP-wise in positional sorted order from target and reference
+    // for progress
+    size_t linesperpercentref = Mrefidx/100;
+    size_t linesperpercentq = Mqidx/100;
+    if (!linesperpercentref) linesperpercentref = 1;
+    if (!linesperpercentq) linesperpercentq = 1;
+    updateStatus(statfile, 0, 0);
 
-        if ((Mref + Mq)%256 == 0)
-            updateStatus(statfile, Mref/(float)Mrefidx, Mq/(float)Mqidx);
+    while (bcf_sr_next_line(sr)) { // read data SNP-wise in positional sorted order from target and reference
 
         bcf1_t *ref = bcf_sr_get_line(sr, 0); // read one line of reference, if available at current position (otherwise NULL)
         bcf1_t *tgt = bcf_sr_get_line(sr, 1); // read one line of target, if available at current position (otherwise NULL)
 
-        if (!ref) { // query only variant
-            Mq++;
-            continue;
-        }
-
-        if (!tgt) { // reference only variant
+        if (ref)
             Mref++;
+        if (tgt)
+            Mq++;
+
+        if (Mref % linesperpercentref == 0 || Mq % linesperpercentq == 0)
+            updateStatus(statfile, Mref/(float)Mrefidx, Mq/(float)Mqidx);
+
+        if (!ref || !tgt) { // query or reference only variant
             continue;
         }
 
-        // common variant
-        Mcommon++;
-        Mref++;
-        Mq++;
+        // shared variant
+        Mshared++;
 
         // exclude monomorphic or multi-allelic markers
         if (ref->n_allele != 2 || tgt->n_allele != 2) {
@@ -301,7 +315,7 @@ int main(int argc, char *argv[]) {
 
         // get dosages, if present
         int nret = bcf_get_format_values(q_hdr,tgt,"ADS",(void**)&dosbuf,&ndosbuf,BCF_HT_REAL);
-        if (nret > 0) {
+        if (nret) {
             // check number of dosages
             if ((size_t)nret != 2*Nquery && (size_t)nret != Nquery) {
                cerr << "ERROR: called dosage number is not as expected! nret = " << nret << " (expected: " << Nquery << " or " << 2*Nquery << ")" << endl;
@@ -489,7 +503,7 @@ int main(int argc, char *argv[]) {
     updateStatus(statfile, 1, 1);
 
     size_t Mexclude = MrefError + MqError + MAlleleDiff;
-    size_t Mcheck = Mcommon - Mexclude;
+    size_t Mcheck = Mshared - Mexclude;
 
     cout << "\nSummary:\n" << endl;
 
@@ -499,11 +513,11 @@ int main(int argc, char *argv[]) {
 
     cout << "  Reference variants:       " << Mref << endl;
     cout << "  Query variants:           " << Mq << endl;
-    cout << "  Common variants:          " << Mcommon << endl;
+    cout << "  Shared variants:          " << Mshared << endl;
     cout << "  Checked variants:         " << Mcheck << endl;
     cout << endl;
 
-    cout << "  Excluded commons:         " << Mexclude << endl;
+    cout << "  Excluded shared:         " << Mexclude << endl;
     cout << "    Not biallelic in ref:   " << MrefError << endl;
     cout << "    Not biallelic in query: " << MqError << endl;
     cout << "    Alleles do not match:   " << MAlleleDiff << endl;
