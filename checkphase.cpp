@@ -29,6 +29,8 @@
 #include <htslib/vcf.h>
 #include <htslib/synced_bcf_reader.h>
 
+#include "utils.h"
+
 using namespace std;
 
 inline size_t getNumVariantsFromIndex(const string &vcffilename) {
@@ -97,35 +99,6 @@ inline size_t getNumVariantsFromIndex(const string &vcffilename) {
         hts_idx_destroy(idx);
 
     return numvars;
-}
-
-// convert NULL terminated C string to a reverse complemented std::string
-// only charactes ATCG are supported, others are kept as they are
-inline string reverseComplement(const char *s) {
-    string rc(s);
-    auto rcit = rc.begin();
-    for (int i = rc.size()-1; i >= 0; i--) {
-        char c = s[i];
-        switch (c) {
-        case 'A':
-            c = 'T';
-            break;
-        case 'T':
-            c = 'A';
-            break;
-        case 'C':
-            c = 'G';
-            break;
-        case 'G':
-            c = 'C';
-            break;
-        default:
-            break;
-        }
-        *rcit = c;
-        rcit++;
-    }
-    return rc;
 }
 
 inline void updateStatus(const char* statfile, float r, float q) {
@@ -274,8 +247,8 @@ int main(int argc, char *argv[]) {
     bool havedosages = false;
 
     // for progress
-    size_t linesperpercentref = Mrefidx/100;
-    size_t linesperpercentq = Mqidx/100;
+    size_t linesperpercentref = divideRounded(Mrefidx, (size_t)100);
+    size_t linesperpercentq = divideRounded(Mqidx, (size_t)100);
     if (!linesperpercentref) linesperpercentref = 1;
     if (!linesperpercentq) linesperpercentq = 1;
     updateStatus(statfile, 0, 0);
@@ -290,8 +263,14 @@ int main(int argc, char *argv[]) {
         if (tgt)
             Mq++;
 
-        if (Mref % linesperpercentref == 0 || Mq % linesperpercentq == 0)
+        if ((ref && Mref % linesperpercentref == 0) || (tgt && Mq % linesperpercentq == 0)) {
+            if (ref && Mref % linesperpercentref == 0) {
+                size_t p = (size_t)(100*Mref/(float)Mrefidx);
+                if (p%5 == 0)
+                    cout << p << "%.." << flush;
+            }
             updateStatus(statfile, Mref/(float)Mrefidx, Mq/(float)Mqidx);
+        }
 
         if (!ref || !tgt) { // query or reference only variant
             continue;
@@ -315,8 +294,8 @@ int main(int argc, char *argv[]) {
 
         // get dosages, if present
         int nret = bcf_get_format_values(q_hdr,tgt,"ADS",(void**)&dosbuf,&ndosbuf,BCF_HT_REAL); // ADS type
-        if (!nret) nret = bcf_get_format_values(q_hdr,tgt,"HDS",(void**)&dosbuf,&ndosbuf,BCF_HT_REAL); // HDS type
-        if (nret) {
+        if (nret <= 0) nret = bcf_get_format_values(q_hdr,tgt,"HDS",(void**)&dosbuf,&ndosbuf,BCF_HT_REAL); // HDS type
+        if (nret > 0) {
             // check number of dosages
             if ((size_t)nret != 2*Nquery && (size_t)nret != Nquery) {
                cerr << "ERROR: called dosage number is not as expected! nret = " << nret << " (expected: " << Nquery << " or " << 2*Nquery << ")" << endl;
