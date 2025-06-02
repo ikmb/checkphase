@@ -1,9 +1,11 @@
 # Checkphase
-Provided a reference and a query VCF/BCF file, Checkphase compares common biallelic variants from both files and gives a summary on switch errors (useful for haplotype phasing) and genotype errors (useful for genotype imputation). The tool uses Htslib to load the VCFs and to identify common sites.
+Provided a reference and a query VCF/BCF file, Checkphase compares shared biallelic variants from both files and gives a summary on switch errors (useful for haplotype phasing) and genotype errors (useful for genotype imputation). The tool uses Htslib to load the VCFs and to identify shared sites.
+
+Genotype errors can be presented as *hard* or *soft* errors. Hard errors are based on the hard genotype call while soft errors are based on the imputation dosage. Soft errors are only calculated if allele dosage data is present (i.e. either ADS or HDS tags).
 
 **Note:** The reference and the query files must contain exactly the same samples.
 
-**Note:** A different phase in both input files at a heterozygous site is only considered as a switch error if the phase at the previous common heterozygous site was equal. Otherwise, the path simply continues and the difference is therefore not another switch error. Futhermore, a phase difference at the first heterozygous position is considered as a switch in the maternal and paternal path (mat/pat switch) and not as a switch error.
+**Note:** A different phase in both input files at a heterozygous site is only considered as a switch error if the phase at the previous shared heterozygous site was equal. Otherwise, the path simply continues and the difference is therefore not another switch error. Futhermore, a phase difference at the first heterozygous position is considered as a switch in the maternal and paternal path (mat/pat switch) and not as a switch error.
 
 The `--stat` switch continuously writes the progress in a file with the provided filename.
 
@@ -23,7 +25,7 @@ Input files:
   Query samples:                 Nquery = 500
 
 Passed samples check.
-Checking common variants for phase and genotype errors... done.
+Checking shared variants for phase and genotype errors... done.
 
 Summary:
 
@@ -32,10 +34,10 @@ Summary:
 
   Reference variants:       8799
   Query variants:           8799
-  Common variants:          8799
+  Shared variants:          8799
   Checked variants:         8799
 
-  Excluded commons:         0
+  Excluded shared:          0
     Not biallelic in ref:   0
     Not biallelic in query: 0
     Alleles do not match:   0

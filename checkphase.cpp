@@ -314,7 +314,8 @@ int main(int argc, char *argv[]) {
         size_t ntgt_gt = bcf_get_genotypes(q_hdr, tgt, &tgt_gt, &mtgt_gt); // calls bcf_unpack() within
 
         // get dosages, if present
-        int nret = bcf_get_format_values(q_hdr,tgt,"ADS",(void**)&dosbuf,&ndosbuf,BCF_HT_REAL);
+        int nret = bcf_get_format_values(q_hdr,tgt,"ADS",(void**)&dosbuf,&ndosbuf,BCF_HT_REAL); // ADS type
+        if (!nret) nret = bcf_get_format_values(q_hdr,tgt,"HDS",(void**)&dosbuf,&ndosbuf,BCF_HT_REAL); // HDS type
         if (nret) {
             // check number of dosages
             if ((size_t)nret != 2*Nquery && (size_t)nret != Nquery) {
