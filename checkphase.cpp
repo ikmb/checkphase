@@ -211,9 +211,13 @@ int main(int argc, char *argv[]) {
 
     cout << "Checking shared variants for phase and genotype errors..." << flush;
 
-    size_t Mshared = 0;    // shared variants
     size_t Mref = 0; // reference variants
     size_t Mq = 0;   // query variants
+    size_t Mshared = 0; // shared variants
+    size_t Mr2_09 = 0; // shared variants with imputation R2 >= 0.9
+    size_t Mr2_07 = 0; // shared variants with imputation R2 >= 0.7
+    size_t Mr2_05 = 0; // shared variants with imputation R2 >= 0.5
+    size_t Mtyped = 0; // shared variants with TYPED tag
 
     int mref_gt = 0; void *ref_gt = NULL; // will be allocated once in bcf_get_genotypes() and then reused for each marker (need void* because of htslib)
     int mtgt_gt = 0; void *tgt_gt = NULL; // will be allocated once in bcf_get_genotypes() and then reused for each marker (need void* because of htslib)
@@ -233,10 +237,23 @@ int main(int argc, char *argv[]) {
     vector<size_t> MqUnphasedHet  (Nquery, 0);
 
     vector<bool> initialized(Nquery, false);
+    vector<bool> initialized_typed(Nquery, false);
     vector<bool> switched(Nquery, false);
+    vector<bool> switched_typed(Nquery, false);
     vector<size_t> switchErrors(Nquery, 0);
+    vector<size_t> switchErrors_typed(Nquery, 0);
+    vector<bool> matPatSwitches(Nquery, false);
+    vector<bool> matPatSwitches_typed(Nquery, false);
     vector<size_t> gtErrors(Nquery, 0);
+    vector<size_t> gtErrors_r2_09(Nquery, 0);
+    vector<size_t> gtErrors_r2_07(Nquery, 0);
+    vector<size_t> gtErrors_r2_05(Nquery, 0);
     vector<double> gtErrorsSoft(Nquery, 0.0);
+    vector<double> gtErrorsSoft_r2_09(Nquery, 0.0);
+    vector<double> gtErrorsSoft_r2_07(Nquery, 0.0);
+    vector<double> gtErrorsSoft_r2_05(Nquery, 0.0);
+
+    // used only when --dump is set
     vector<vector<size_t>> errPos(Nquery);
 
     // for counting haploid samples
@@ -245,6 +262,7 @@ int main(int argc, char *argv[]) {
     size_t Nrefhap = 0;
     size_t Nqhap = 0;
     bool havedosages = false;
+    bool havetyped = false;
 
     // for progress
     size_t linesperpercentref = divideRounded(Mrefidx, (size_t)100);
@@ -252,6 +270,12 @@ int main(int argc, char *argv[]) {
     if (!linesperpercentref) linesperpercentref = 1;
     if (!linesperpercentq) linesperpercentq = 1;
     updateStatus(statfile, 0, 0);
+
+    // need to allocate memory for the return value for R2 for htslib
+    int r2_size = sizeof(float);
+    float *r2_ptr = (float*) malloc(r2_size);
+    int typed_size = sizeof(int);
+    int *typed_ptr = (int*) malloc(typed_size);
 
     while (bcf_sr_next_line(sr)) { // read data SNP-wise in positional sorted order from target and reference
 
@@ -291,6 +315,20 @@ int main(int argc, char *argv[]) {
         // decode genotypes/haplotypes
         size_t nref_gt = bcf_get_genotypes(ref_hdr, ref, &ref_gt, &mref_gt); // calls bcf_unpack() within
         size_t ntgt_gt = bcf_get_genotypes(q_hdr, tgt, &tgt_gt, &mtgt_gt); // calls bcf_unpack() within
+
+        // imputation R2
+        // you need to manually alloc the memory for the return value on the heap,
+        // as HTSlib may re-allocate the memory (e.g. if the AF tag has more than one entry (multi-allelics))
+        float r2 = 0.0;
+        if (bcf_get_info_float(q_hdr, tgt, "R2", (void*)&r2_ptr, &r2_size) > 0) // successfully read R2 tag
+            r2 = *r2_ptr; // if there's more than one R2 entry, take the first.
+
+        // genotyped or not?
+        bool typed = false;
+        if (bcf_get_info_flag(q_hdr, tgt, "TYPED", (void*)&typed_ptr, &typed_size) > 0) { // successfully read TYPED tag and thus, it was set
+            typed = true;
+            havetyped = true;
+        }
 
         // get dosages, if present
         int nret = bcf_get_format_values(q_hdr,tgt,"ADS",(void**)&dosbuf,&ndosbuf,BCF_HT_REAL); // ADS type
@@ -342,6 +380,18 @@ int main(int argc, char *argv[]) {
                 Nqhap = Nquery;
             } // else could perhaps throw an error if numbers don't match??
         }
+
+        // count in R2 categories
+        if (r2 >= 0.9)
+            Mr2_09++;
+        if (r2 >= 0.7)
+            Mr2_07++;
+        if (r2 >= 0.5)
+            Mr2_05++;
+
+        // count checked typed variants
+        if (typed)
+            Mtyped++;
 
         // check samples
         for (size_t q = 0; q < Nquery; q++) {
@@ -442,28 +492,59 @@ int main(int argc, char *argv[]) {
                     err = (1.0-qdosmat)*(1.0-qdospat) + qdosmat*qdospat; // 1-gp1 = 1-(1-gp0-gp2) = gp0+gp2
                 }
                 gtErrorsSoft[q] += err;
+                if (r2 >= 0.9)
+                    gtErrorsSoft_r2_09[q] += err;
+                if (r2 >= 0.7)
+                    gtErrorsSoft_r2_07[q] += err;
+                if (r2 >= 0.5)
+                    gtErrorsSoft_r2_05[q] += err;
             }
             // hard check
             if (refgt != qgt) { // genotype error -> continue with next sample
                 gtErrors[q]++;
+                if (r2 >= 0.9)
+                    gtErrors_r2_09[q]++;
+                if (r2 >= 0.7)
+                    gtErrors_r2_07[q]++;
+                if (r2 >= 0.5)
+                    gtErrors_r2_05[q]++;
                 continue;
             }
 
             // phase check
-            if (refgt == 1 && phased) { // only proceed on heterozygous site and if site is phased
+            if (refgt == 1 && phased) { // only proceed on heterozygous site and if site is phased (gt errors are already excluded above)
                 if (initialized[q]) { // this is not the first het for this sample -> wrong phase is a switch error!
                     //bool swerr = (refmat != qmat) xor switched[q];
                     bool swerr = switched[q] ? (refmat == qmat) : (refmat != qmat);
                     if (swerr) {
                         switched[q] = !switched[q];
                         switchErrors[q]++;
-                        errPos[q].push_back(Mq-1); // error position is 0-based
+                        if (dump)
+                            errPos[q].push_back(Mq-1); // error position is 0-based
                     }
                 } else { // first het site -> simply set the switched-flag according to the current phases in ref and query
                     initialized[q] = true;
                     if (refmat != qmat) {
                         switched[q] = true;
-                        errPos[q].push_back(0); // indicates the difference at the first het, for debugging
+                        matPatSwitches[q] = true;
+                        if (dump)
+                            errPos[q].push_back(0); // indicates the difference at the first het, for debugging
+                    }
+                }
+                if (typed) {
+                    if (initialized_typed[q]) { // this is not the first het for this sample -> wrong phase is a switch error!
+                        //bool swerr = (refmat != qmat) xor switched[q];
+                        bool swerr = switched_typed[q] ? (refmat == qmat) : (refmat != qmat);
+                        if (swerr) {
+                            switched_typed[q] = !switched_typed[q];
+                            switchErrors_typed[q]++;
+                        }
+                    } else { // first het site -> simply set the switched-flag according to the current phases in ref and query
+                        initialized_typed[q] = true;
+                        if (refmat != qmat) {
+                            switched_typed[q] = true;
+                            matPatSwitches_typed[q] = true;
+                        }
                     }
                 }
             }
@@ -481,6 +562,8 @@ int main(int argc, char *argv[]) {
     } // end while read line
     cout << " done." << endl;
     updateStatus(statfile, 1, 1);
+    free(r2_ptr);
+    free(typed_ptr);
 
     size_t Mexclude = MrefError + MqError + MAlleleDiff;
     size_t Mcheck = Mshared - Mexclude;
@@ -495,9 +578,13 @@ int main(int argc, char *argv[]) {
     cout << "  Query variants:           " << Mq << endl;
     cout << "  Shared variants:          " << Mshared << endl;
     cout << "  Checked variants:         " << Mcheck << endl;
+    cout << "  Checked R2 >= 0.9:        " << Mr2_09 << endl;
+    cout << "  Checked R2 >= 0.7:        " << Mr2_07 << endl;
+    cout << "  Checked R2 >= 0.5:        " << Mr2_05 << endl;
+    cout << "  Checked typed variants:   " << Mtyped << endl;
     cout << endl;
 
-    cout << "  Excluded shared:         " << Mexclude << endl;
+    cout << "  Excluded shared:          " << Mexclude << endl;
     cout << "    Not biallelic in ref:   " << MrefError << endl;
     cout << "    Not biallelic in query: " << MqError << endl;
     cout << "    Alleles do not match:   " << MAlleleDiff << endl;
@@ -531,8 +618,14 @@ int main(int argc, char *argv[]) {
     cout << "    Total unphased het in query: " << totalQUnphasedHet << endl;
     cout << endl;
 
+    cout << fixed; // omit scientific notation
+    cout << setprecision(8);
+
     {
         size_t totalGtErrors = 0;
+        size_t totalGtErrors_r2_09 = 0;
+        size_t totalGtErrors_r2_07 = 0;
+        size_t totalGtErrors_r2_05 = 0;
         size_t gtErrorMin = 0xffffffffffffffffull;
         size_t gtErrorMax = 0;
         // calc total errors and identify min and max
@@ -545,36 +638,54 @@ int main(int argc, char *argv[]) {
                 gtErrorMax = err;
             }
         }
-        double avgterr = round(totalGtErrors/(double) Nquery);
+        for (size_t err : gtErrors_r2_09)
+            totalGtErrors_r2_09 += err;
+        for (size_t err : gtErrors_r2_07)
+            totalGtErrors_r2_07 += err;
+        for (size_t err : gtErrors_r2_05)
+            totalGtErrors_r2_05 += err;
+        double avgterr = totalGtErrors / (double) Nquery;
         double mingterrrate = gtErrorMin / (double)Mcheck;
         double maxgterrrate = gtErrorMax / (double)Mcheck;
         double avgterrrate  = totalGtErrors / (double)(Mcheck * Nquery);
-        // calc standard deviation and variance
-        double totgtdev = 0.0;
+        double avgterrrate_r2_09 = totalGtErrors_r2_09 / (double)(Mr2_09 * Nquery);
+        double avgterrrate_r2_07 = totalGtErrors_r2_07 / (double)(Mr2_07 * Nquery);
+        double avgterrrate_r2_05 = totalGtErrors_r2_05 / (double)(Mr2_05 * Nquery);
+        // calc standard deviation and variance for error rates
         double totgtdev2 = 0.0;
         for (size_t err : gtErrors) {
-            double diff = ((double)err) - avgterr;
-            totgtdev += abs(diff);
+            double diff = err/(double)Mcheck - avgterrrate;
             totgtdev2 += diff*diff;
         }
-        double gerdev = totgtdev / (double)(Mcheck * Nquery);
-        double gervar = sqrt(totgtdev2) / (double)(Mcheck * Nquery);
+        double gervar = totgtdev2 / (double)Nquery;
+        double gerdev = sqrt(gervar);
 
         cout << "  Genotype errors (hard):" << endl;
-        cout << "    Total genotype errors:     " << totalGtErrors << endl;
-        cout << "    Minimum genotype errors:   " << gtErrorMin << endl;
-        cout << "    Maximum genotype errors:   " << gtErrorMax << endl;
-        cout << "    Average gt err per sample: " << avgterr << endl;
-        cout << "    Minimum gt error rate:     " << mingterrrate << endl;
-        cout << "    Maximum gt error rate:     " << maxgterrrate << endl;
-        cout << "    Average gt error rate:     " << avgterrrate << endl;
-        cout << "    Standard GER deviation:    " << gerdev << endl;
-        cout << "    GER variance:              " << gervar << endl;
+        cout << "    Total genotype errors:             " << totalGtErrors << endl;
+        cout << "    Total genotype errors (R2 >= 0.9): " << totalGtErrors_r2_09 << endl;
+        cout << "    Total genotype errors (R2 >= 0.7): " << totalGtErrors_r2_07 << endl;
+        cout << "    Total genotype errors (R2 >= 0.5): " << totalGtErrors_r2_05 << endl;
+        cout << "    Total genotype errors:             " << totalGtErrors << endl;
+        cout << "    Total genotype errors:             " << totalGtErrors << endl;
+        cout << "    Minimum genotype errors:           " << gtErrorMin << endl;
+        cout << "    Maximum genotype errors:           " << gtErrorMax << endl;
+        cout << "    Average gt err per sample:         " << avgterr << endl;
+        cout << "    Minimum gt error rate:             " << mingterrrate << endl;
+        cout << "    Maximum gt error rate:             " << maxgterrrate << endl;
+        cout << "    Average gt error rate:             " << avgterrrate << endl;
+        cout << "    Average gt error rate (R2 >= 0.9): " << avgterrrate_r2_09 << endl;
+        cout << "    Average gt error rate (R2 >= 0.7): " << avgterrrate_r2_07 << endl;
+        cout << "    Average gt error rate (R2 >= 0.5): " << avgterrrate_r2_05 << endl;
+        cout << "    Standard GER deviation:            " << gerdev << endl;
+        cout << "    GER variance:                      " << gervar << endl;
         cout << endl;
     }
 
     if (havedosages) {
         double totalGtErrorsSoft = 0;
+        double totalGtErrorsSoft_r2_09 = 0;
+        double totalGtErrorsSoft_r2_07 = 0;
+        double totalGtErrorsSoft_r2_05 = 0;
         double gtErrorMinSoft = 0xffffffffffffffffull;
         double gtErrorMaxSoft = 0;
         // calc total errors and identify min and max
@@ -587,31 +698,44 @@ int main(int argc, char *argv[]) {
                 gtErrorMaxSoft = err;
             }
         }
-        double avgterr = round(totalGtErrorsSoft/(double) Nquery);
+        for (double err : gtErrorsSoft_r2_09)
+            totalGtErrorsSoft_r2_09 += err;
+        for (double err : gtErrorsSoft_r2_07)
+            totalGtErrorsSoft_r2_07 += err;
+        for (double err : gtErrorsSoft_r2_05)
+            totalGtErrorsSoft_r2_05 += err;
+        double avgterr = totalGtErrorsSoft / (double) Nquery;
         double mingterrrate = gtErrorMinSoft / (double)Mcheck;
         double maxgterrrate = gtErrorMaxSoft / (double)Mcheck;
         double avgterrrate  = totalGtErrorsSoft / (double)(Mcheck * Nquery);
-        // calc standard deviation and variance
-        double totgtdev = 0.0;
+        double avgterrrate_r2_09 = totalGtErrorsSoft_r2_09 / (double)(Mr2_09 * Nquery);
+        double avgterrrate_r2_07 = totalGtErrorsSoft_r2_07 / (double)(Mr2_07 * Nquery);
+        double avgterrrate_r2_05 = totalGtErrorsSoft_r2_05 / (double)(Mr2_05 * Nquery);
+        // calc standard deviation and variance for error rates
         double totgtdev2 = 0.0;
         for (double err : gtErrorsSoft) {
-            double diff = ((double)err) - avgterr;
-            totgtdev += abs(diff);
+            double diff = err/(double)Mcheck - avgterrrate;
             totgtdev2 += diff*diff;
         }
-        double gerdev = totgtdev / (double)(Mcheck * Nquery);
-        double gervar = sqrt(totgtdev2) / (double)(Mcheck * Nquery);
+        double gervar = totgtdev2 / (double)Nquery;
+        double gerdev = sqrt(gervar);
 
         cout << "  Genotype errors (soft):" << endl;
-        cout << "    Total genotype errors (soft):     " << totalGtErrorsSoft << endl;
-        cout << "    Minimum genotype errors (soft):   " << gtErrorMinSoft << endl;
-        cout << "    Maximum genotype errors (soft):   " << gtErrorMaxSoft << endl;
-        cout << "    Average gt err per sample (soft): " << avgterr << endl;
-        cout << "    Minimum gt error rate (soft):     " << mingterrrate << endl;
-        cout << "    Maximum gt error rate (soft):     " << maxgterrrate << endl;
-        cout << "    Average gt error rate (soft):     " << avgterrrate << endl;
-        cout << "    Standard GER deviation (soft):    " << gerdev << endl;
-        cout << "    GER variance (soft):              " << gervar << endl;
+        cout << "    Total genotype errors (soft):             " << totalGtErrorsSoft << endl;
+        cout << "    Total genotype errors (R2 >= 0.9) (soft): " << totalGtErrorsSoft_r2_09 << endl;
+        cout << "    Total genotype errors (R2 >= 0.7) (soft): " << totalGtErrorsSoft_r2_07 << endl;
+        cout << "    Total genotype errors (R2 >= 0.5) (soft): " << totalGtErrorsSoft_r2_05 << endl;
+        cout << "    Minimum genotype errors (soft):           " << gtErrorMinSoft << endl;
+        cout << "    Maximum genotype errors (soft):           " << gtErrorMaxSoft << endl;
+        cout << "    Average gt err per sample (soft):         " << avgterr << endl;
+        cout << "    Minimum gt error rate (soft):             " << mingterrrate << endl;
+        cout << "    Maximum gt error rate (soft):             " << maxgterrrate << endl;
+        cout << "    Average gt error rate (soft):             " << avgterrrate << endl;
+        cout << "    Average gt error rate (R2 >= 0.9) (soft): " << avgterrrate_r2_09 << endl;
+        cout << "    Average gt error rate (R2 >= 0.7) (soft): " << avgterrrate_r2_07 << endl;
+        cout << "    Average gt error rate (R2 >= 0.5) (soft): " << avgterrrate_r2_05 << endl;
+        cout << "    Standard GER deviation (soft):            " << gerdev << endl;
+        cout << "    GER variance (soft):                      " << gervar << endl;
         cout << endl;
     }
 
@@ -628,20 +752,18 @@ int main(int argc, char *argv[]) {
                 swErrorMax = err;
             }
         }
-        double avswerr = round(totalSwErrors/(double) Nquery);
+        double avswerr = totalSwErrors/(double) Nquery;
         double minswerrrate = swErrorMin / (double)Mcheck;
         double maxswerrrate = swErrorMax / (double)Mcheck;
         double avswerrrate  = totalSwErrors / (double)(Mcheck * Nquery);
-        // calc standard deviation and variance
-        double totswdev = 0.0;
+        // calc standard deviation and variance for error rates
         double totswdev2 = 0.0;
         for (size_t err : switchErrors) {
-            double diff = ((double)err) - avswerr;
-            totswdev += abs(diff);
+            double diff = err/(double)Mcheck - avswerrrate;
             totswdev2 += diff*diff;
         }
-        double serdev = totswdev / (double)(Mcheck * Nquery);
-        double servar = sqrt(totswdev2) / (double)(Mcheck * Nquery);
+        double servar = totswdev2 / (double)Nquery;
+        double serdev = sqrt(servar);
 
         // tab-delimited list of queryID, mat/pat switched?, # swerrs, comma-separated list of sw error positions
         if (dump)
@@ -649,16 +771,15 @@ int main(int argc, char *argv[]) {
         size_t errfree = 0;
         size_t matpatswitches = 0;
         for (size_t q = 0; q < Nquery; q++) {
-            const auto &ep = errPos[q];
-            if (ep.empty() || (ep.size() == 1 && ep[0] == 0)) {
+            // switch error free targets
+            if (switchErrors[q] == 0)
                 errfree++;
-            }
-            bool matpatsw = false;
-            if (!ep.empty() && ep[0] == 0) {
-                matpatsw = true;
+            bool matpatsw = matPatSwitches[q];
+            if (matpatsw) { // mat/pat switch
                 matpatswitches++;
             }
             if (dump) {
+                const auto &ep = errPos[q];
                 cerr << q << "\t" << (matpatsw ? 1 : 0) << "\t" << (matpatsw ? (ep.size()-1) : ep.size()) << "\t";
                 auto epit = ep.begin();
                 if (matpatsw)
@@ -686,11 +807,66 @@ int main(int argc, char *argv[]) {
         cout << endl;
     }
 
+    if (havetyped) {
+        size_t totalSwErrors = 0;
+        size_t swErrorMin = 0xffffffffffffffffull;
+        size_t swErrorMax = 0;
+        for (size_t err : switchErrors_typed) {
+            totalSwErrors += err;
+            if (swErrorMin > err) {
+                swErrorMin = err;
+            }
+            if (swErrorMax < err) {
+                swErrorMax = err;
+            }
+        }
+        double avswerr = totalSwErrors/(double) Nquery;
+        double minswerrrate = swErrorMin / (double)Mtyped;
+        double maxswerrrate = swErrorMax / (double)Mtyped;
+        double avswerrrate  = totalSwErrors / (double)(Mtyped * Nquery);
+        // calc standard deviation and variance for error rates
+        double totswdev2 = 0.0;
+        for (size_t err : switchErrors_typed) {
+            double diff = err/(double)Mtyped - avswerrrate;
+            totswdev2 += diff*diff;
+        }
+        double servar = totswdev2 / (double)Nquery;
+        double serdev = sqrt(servar);
+
+        size_t errfree = 0;
+        size_t matpatswitches = 0;
+        for (size_t q = 0; q < Nquery; q++) {
+            // switch error free targets
+            if (switchErrors_typed[q] == 0)
+                errfree++;
+            bool matpatsw = matPatSwitches_typed[q];
+            if (matpatsw) { // mat/pat switch
+                matpatswitches++;
+            }
+        }
+
+        cout << "  Switch errors (typed):" << endl;
+        cout << "    Total switch errors (typed):       " << totalSwErrors << endl;
+        cout << "    Minimum switch errors (typed):     " << swErrorMin << endl;
+        cout << "    Maximum switch errors (typed):     " << swErrorMax << endl;
+        cout << "    Average sw err per sample (typed): " << avswerr << endl;
+        cout << "    Minimum sw error rate (typed):     " << minswerrrate << endl;
+        cout << "    Maximum sw error rate (typed):     " << maxswerrrate << endl;
+        cout << "    Average sw error rate (typed):     " << avswerrrate << endl;
+        cout << "    Standard SER deviation (typed):    " << serdev << endl;
+        cout << "    SER variance (typed):              " << servar << endl;
+        cout << "    Switch error free targets (typed): " << errfree << endl;
+        cout << "    Mat/Pat switches (typed):          " << matpatswitches << endl;
+        cout << endl;
+    } // END if (typed)
+
     // dump sample-wise information to file
     string samplefile(queryfile);
     samplefile += ".checkphase.samples";
     ofstream ofs(samplefile);
     ofs << "Checked variants:\t" << Mcheck << endl;
+    if (havetyped)
+        ofs << "Checked typed variants:\t" << Mtyped << endl;
     // header
     ofs << "Idx\tSwerr\tGterr_hard\tGterr_soft" << endl;
     for (size_t q = 0; q < Nquery; q++) {
