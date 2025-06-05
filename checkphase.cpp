@@ -543,19 +543,6 @@ int main(int argc, char *argv[]) {
             gtsumq += qgt;
             gt2sumq += qgt*qgt;
             gtsumrefq += refgt * qgt;
-            // DEBUG
-            // numeric instability check
-            if (gtSumRef[q] > 1ull<<31)
-                cerr << "\nWARNING gtSumRef[" << q << "] getting very large!" << endl;
-            if (gt2SumRef[q] > 1ull<<31)
-                cerr << "\nWARNING gt2SumRef[" << q << "] getting very large!" << endl;
-            if (gtSumQ[q] > 1ull<<31)
-                cerr << "\nWARNING gtSumQ[" << q << "] getting very large!" << endl;
-            if (gt2SumQ[q] > 1ull<<31)
-                cerr << "\nWARNING gt2SumQ[" << q << "] getting very large!" << endl;
-            if (gtSumRefQ[q] > 1ull<<31)
-                cerr << "\nWARNING gtSumRefQ[" << q << "] getting very large!" << endl;
-            // __DEBUG
 
             // from here haploids are treated as homozygous diploid
             if (!diploid) {
@@ -604,11 +591,6 @@ int main(int argc, char *argv[]) {
                     gtErrorsSoft_maf0001[q] += err;
                 if (maf >= 0.0001)
                     gtErrorsSoft_maf00001[q] += err;
-                // DEBUG
-                double dsq = gtDosSumQ[currbin][q];
-                double ds2q = gtDos2SumQ[currbin][q];
-                double dsrq = gtDosSumRefQ[currbin][q];
-                // __DEBUG
                 // genotype dosage = ads0 + ads1
                 double gtdos = qdosmat + (diploid ? qdospat : 0);
                 gtDosSumQ[currbin][q] += gtdos;
@@ -617,15 +599,6 @@ int main(int argc, char *argv[]) {
                 gtdossumq += gtdos;
                 gtdos2sumq += gtdos*gtdos;
                 gtdossumrefq += (refgt * gtdos) / (diploid ? 1 : 2);
-                // DEBUG
-                // numeric instability check
-                if (gtDosSumQ[currbin][q] == dsq && gtdos > 0)
-                    cerr << "\nWARNING gtDosSumQ[" << currbin << "][" << q << "] misses small values!" << gtdos << endl;
-                if (gtDos2SumQ[currbin][q] == ds2q && gtdos*gtdos > 0)
-                    cerr << "\nWARNING gtDos2SumQ[" << currbin << "][" << q << "] misses small values! " << gtdos*gtdos << endl;
-                if (gtDosSumRefQ[currbin][q] == dsrq && refgt * gtdos > 0)
-                    cerr << "\nWARNING gtDosSumRefQ[" << currbin << "][" << q << "] misses small values!" << refgt * gtdos << endl;
-                // __DEBUG
 
             }
             // hard check
@@ -913,7 +886,6 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (MAF>=0.001):        " << avgterrrate_maf0001 << endl;
         cout << "    Average gt error rate (MAF>=0.0001):       " << avgterrrate_maf00001 << endl;
         cout << "    Standard GER deviation:                    " << gerdev << endl;
-//        cout << "    GER variance:                              " << gervar << endl;
         cout << "    correlation r2 (complete):                 " << r2 << endl;
         cout << "    correlation r2 (var average):              " << r2_vav << endl;
         cout << "    correlation r2 (var average, MAF>=0.1):    " << r2_vav_maf01 << endl;
@@ -923,13 +895,6 @@ int main(int argc, char *argv[]) {
         cout << "    correlation r2 (sample average):           " << r2_sav << endl;
         cout << "    min correlation r2 (sample):               " << r2_smin << endl;
         cout << "    max correlation r2 (sample):               " << r2_smax << endl;
-        // DEBUG
-        size_t r_num = (Mcheck*Nquery*gtsumrefq - gtsumref * gtsumq);
-        size_t r2_denom_ref = (Mcheck*Nquery*gt2sumref - gtsumref * gtsumref);
-        size_t r2_denom_q = (Mcheck*Nquery*gt2sumq - gtsumq * gtsumq);
-        cout << "rnum:         " << r_num << endl;
-        cout << "r2_denom_ref: " << r2_denom_ref << endl;
-        cout << "r2_denom_q:   " << r2_denom_q << endl;
         cout << endl;
     }
 
@@ -1030,7 +995,6 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (MAF>=0.001)(soft):         " << avgterrrate_maf0001 << endl;
         cout << "    Average gt error rate (MAF>=0.0001)(soft):        " << avgterrrate_maf00001 << endl;
         cout << "    Standard GER deviation (soft):                    " << gerdev << endl;
-//        cout << "    GER variance (soft):                              " << gervar << endl;
         cout << "    correlation r2 (complete) (soft):                 " << r2 << endl;
         cout << "    correlation r2 (var average) (soft):              " << r2_vav << endl;
         cout << "    correlation r2 (var average, MAF>=0.1) (soft):    " << r2_vav_maf01 << endl;
@@ -1040,13 +1004,6 @@ int main(int argc, char *argv[]) {
         cout << "    correlation r2 (sample average) (soft):           " << r2_sav << endl;
         cout << "    min correlation r2 (sample) (soft):               " << r2_smin << endl;
         cout << "    max correlation r2 (sample) (soft):               " << r2_smax << endl;
-        // DEBUG
-        double r_num = (Mcheck*Nquery*gtdossumrefq - gtsumref * gtdossumq);
-        double r2_denom_ref = (Mcheck*Nquery*gt2sumref - gtsumref * gtsumref);
-        double r2_denom_q = (Mcheck*Nquery*gtdos2sumq - gtdossumq * gtdossumq);
-        cout << "rnum:         " << r_num << endl;
-        cout << "r2_denom_ref: " << r2_denom_ref << endl;
-        cout << "r2_denom_q:   " << r2_denom_q << endl;
         cout << endl;
     }
 
@@ -1112,7 +1069,6 @@ int main(int argc, char *argv[]) {
         cout << "    Maximum sw error rate:     " << maxswerrrate << endl;
         cout << "    Average sw error rate:     " << avswerrrate << endl;
         cout << "    Standard SER deviation:    " << serdev << endl;
-//        cout << "    SER variance:              " << servar << endl;
         cout << "    Switch error free targets: " << errfree << endl;
         cout << "    Mat/Pat switches:          " << matpatswitches << endl;
         cout << endl;
@@ -1165,7 +1121,6 @@ int main(int argc, char *argv[]) {
         cout << "    Maximum sw error rate (typed):     " << maxswerrrate << endl;
         cout << "    Average sw error rate (typed):     " << avswerrrate << endl;
         cout << "    Standard SER deviation (typed):    " << serdev << endl;
-//        cout << "    SER variance (typed):              " << servar << endl;
         cout << "    Switch error free targets (typed): " << errfree << endl;
         cout << "    Mat/Pat switches (typed):          " << matpatswitches << endl;
         cout << endl;
