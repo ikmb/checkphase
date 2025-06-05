@@ -770,16 +770,30 @@ int main(int argc, char *argv[]) {
         }
         double gervar = totgtdev2 / (double)Nquery;
         double gerdev = sqrt(gervar);
-        // correlation r2
+
+        // correlation r2 (complete)
         double r2 = calc_r2_hard(Mcheck*Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
+
+        // correlation r2 (sample-wise)
+        double r2_sav = 0.0;
+        double r2_smin = 999.0;
+        double r2_smax = 0.0;
+        vector<double> r2v(Nquery);
+        for (size_t q = 0; q < Nquery; q++) {
+            r2v[q] = calc_r2_hard(Mcheck, gtSumRef[q], gt2SumRef[q], gtSumQ[q], gt2SumQ[q], gtSumRefQ[q]);
+            r2_sav += r2v[q]; // for the average
+            if (r2v[q] < r2_smin)
+                r2_smin = r2v[q];
+            if (r2v[q] > r2_smax)
+                r2_smax = r2v[q];
+        }
+        r2_sav /= Nquery;
 
         cout << "  Genotype errors (hard):" << endl;
         cout << "    Total genotype errors:             " << totalGtErrors << endl;
         cout << "    Total genotype errors (R2 >= 0.9): " << totalGtErrors_r2_09 << endl;
         cout << "    Total genotype errors (R2 >= 0.7): " << totalGtErrors_r2_07 << endl;
         cout << "    Total genotype errors (R2 >= 0.5): " << totalGtErrors_r2_05 << endl;
-        cout << "    Total genotype errors:             " << totalGtErrors << endl;
-        cout << "    Total genotype errors:             " << totalGtErrors << endl;
         cout << "    Minimum genotype errors:           " << gtErrorMin << endl;
         cout << "    Maximum genotype errors:           " << gtErrorMax << endl;
         cout << "    Average gt err per sample:         " << avgterr << endl;
@@ -791,7 +805,10 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (R2 >= 0.5): " << avgterrrate_r2_05 << endl;
         cout << "    Standard GER deviation:            " << gerdev << endl;
 //        cout << "    GER variance:                      " << gervar << endl;
-        cout << "    correlation r2:                    " << r2 << endl;
+        cout << "    correlation r2 (complete):         " << r2 << endl;
+        cout << "    correlation r2 (sample average):   " << r2_sav << endl;
+        cout << "    min correlation r2 (sample):       " << r2_smin << endl;
+        cout << "    max correlation r2 (sample):       " << r2_smax << endl;
         // DEBUG
         size_t r_num = (Mcheck*Nquery*gtsumrefq - gtsumref * gtsumq);
         size_t r2_denom_ref = (Mcheck*Nquery*gt2sumref - gtsumref * gtsumref);
@@ -840,8 +857,24 @@ int main(int argc, char *argv[]) {
         }
         double gervar = totgtdev2 / (double)Nquery;
         double gerdev = sqrt(gervar);
-        // correlation r2
+
+        // correlation r2 (complete)
         double r2 = calc_r2_soft(Mcheck*Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
+
+        // correlation r2 (sample-wise)
+        double r2_sav = 0.0;
+        double r2_smin = 999.0;
+        double r2_smax = 0.0;
+        vector<double> r2v(Nquery);
+        for (size_t q = 0; q < Nquery; q++) {
+            r2v[q] = calc_r2_soft(Mcheck, gtSumRef[q], gt2SumRef[q], gtdossumqv[q], gtdos2sumqv[q], gtdossumrefqv[q]);
+            r2_sav += r2v[q]; // for the average
+            if (r2v[q] < r2_smin)
+                r2_smin = r2v[q];
+            if (r2v[q] > r2_smax)
+                r2_smax = r2v[q];
+        }
+        r2_sav /= Nquery;
 
         cout << "  Genotype errors (soft):" << endl;
         cout << "    Total genotype errors (soft):             " << totalGtErrorsSoft << endl;
@@ -859,7 +892,10 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (R2 >= 0.5) (soft): " << avgterrrate_r2_05 << endl;
         cout << "    Standard GER deviation (soft):            " << gerdev << endl;
 //        cout << "    GER variance (soft):                      " << gervar << endl;
-        cout << "    correlation r2 (soft):                    " << r2 << endl;
+        cout << "    correlation r2 (complete) (soft):         " << r2 << endl;
+        cout << "    correlation r2 (sample average) (soft):   " << r2_sav << endl;
+        cout << "    min correlation r2 (sample) (soft):       " << r2_smin << endl;
+        cout << "    max correlation r2 (sample) (soft):       " << r2_smax << endl;
         // DEBUG
         double r_num = (Mcheck*Nquery*gtdossumrefq - gtsumref * gtdossumq);
         double r2_denom_ref = (Mcheck*Nquery*gt2sumref - gtsumref * gtsumref);
