@@ -114,6 +114,22 @@ inline void printUsageAndDie(const char* argv0) {
     exit(EXIT_FAILURE);
 }
 
+double calc_r2_hard(size_t n, size_t sumx, size_t sumx2, size_t sumy, size_t sumy2, size_t sumxy) {
+    size_t r_num = n * sumxy - sumx * sumy;
+    size_t r2_denom_ref = n * sumx2 - sumx * sumx;
+    size_t r2_denom_q = n * sumy2 - sumy * sumy;
+    double r2 = (r_num / (double)r2_denom_ref) * (r_num / (double)r2_denom_q);
+    return r2;
+}
+
+double calc_r2_soft(size_t n, size_t sumx, size_t sumx2, double sumy, double sumy2, double sumxy) {
+    double r_num = n * sumxy - sumx * sumy;
+    double r2_denom_ref = n * sumx2 - sumx * sumx;
+    double r2_denom_q = n * sumy2 - sumy * sumy;
+    double r2 = (r_num / r2_denom_ref) * (r_num / r2_denom_q);
+    return r2;
+}
+
 int main(int argc, char *argv[]) {
 
     if (argc < 3 || argc > 6) {
@@ -252,6 +268,14 @@ int main(int argc, char *argv[]) {
     vector<double> gtErrorsSoft_r2_09(Nquery, 0.0);
     vector<double> gtErrorsSoft_r2_07(Nquery, 0.0);
     vector<double> gtErrorsSoft_r2_05(Nquery, 0.0);
+    vector<size_t> gtSumRef(Nquery, 0.0);
+    vector<size_t> gt2SumRef(Nquery, 0.0);
+    vector<size_t> gtSumQ(Nquery, 0.0);
+    vector<size_t> gt2SumQ(Nquery, 0.0);
+    vector<size_t> gtSumRefQ(Nquery, 0.0);
+    vector<vector<double>> gtDosSumQ;
+    vector<vector<double>> gtDos2SumQ;
+    vector<vector<double>> gtDosSumRefQ;
 
     // used only when --dump is set
     vector<vector<size_t>> errPos(Nquery);
@@ -277,6 +301,9 @@ int main(int argc, char *argv[]) {
     int typed_size = sizeof(int);
     int *typed_ptr = (int*) malloc(typed_size);
 
+    // we sum up dosages in bins to compensate for numeric instability
+    size_t currbin = 0;
+
     while (bcf_sr_next_line(sr)) { // read data SNP-wise in positional sorted order from target and reference
 
         bcf1_t *ref = bcf_sr_get_line(sr, 0); // read one line of reference, if available at current position (otherwise NULL)
@@ -301,6 +328,12 @@ int main(int argc, char *argv[]) {
         }
 
         // shared variant
+        if (Mshared % 1024 == 0) {
+            currbin = Mshared/1024;
+            gtDosSumQ.push_back(vector<double>(Nquery, 0.0));
+            gtDos2SumQ.push_back(vector<double>(Nquery, 0.0));
+            gtDosSumRefQ.push_back(vector<double>(Nquery, 0.0));
+        }
         Mshared++;
 
         // exclude monomorphic or multi-allelic markers
@@ -456,8 +489,32 @@ int main(int argc, char *argv[]) {
             }
 
             // gt check
-            int refgt = (refmat ? 1 : 0) + (refpat ? 1 : 0);
-            int qgt = (qmat ? 1 : 0) + (qpat ? 1 : 0);
+            int refgt = (refmat ? 1 : 0) + (diploid ? (refpat ? 1 : 0) : 0);
+            int qgt = (qmat ? 1 : 0) + (diploid ? (qpat ? 1 : 0) : 0);
+            gtSumRef[q] += refgt;
+            gt2SumRef[q] += refgt*refgt;
+            gtSumQ[q] += qgt;
+            gt2SumQ[q] += qgt*qgt;
+            gtSumRefQ[q] += refgt * qgt;
+            // DEBUG
+            // numeric instability check
+            if (gtSumRef[q] > 1ull<<31)
+                cerr << "\nWARNING gtSumRef[" << q << "] getting very large!" << endl;
+            if (gt2SumRef[q] > 1ull<<31)
+                cerr << "\nWARNING gt2SumRef[" << q << "] getting very large!" << endl;
+            if (gtSumQ[q] > 1ull<<31)
+                cerr << "\nWARNING gtSumQ[" << q << "] getting very large!" << endl;
+            if (gt2SumQ[q] > 1ull<<31)
+                cerr << "\nWARNING gt2SumQ[" << q << "] getting very large!" << endl;
+            if (gtSumRefQ[q] > 1ull<<31)
+                cerr << "\nWARNING gtSumRefQ[" << q << "] getting very large!" << endl;
+            // __DEBUG
+
+            // from here haploids are treated as homozygous diploid
+            if (!diploid) {
+                refgt += (refpat ? 1 : 0);
+                qgt += (qpat ? 1 : 0);
+            }
             if (refgt == 1 && !phased)
                 MrefUnphasedHet[q]++;
             if (qgt == 1 && !phased)
@@ -498,6 +555,26 @@ int main(int argc, char *argv[]) {
                     gtErrorsSoft_r2_07[q] += err;
                 if (r2 >= 0.5)
                     gtErrorsSoft_r2_05[q] += err;
+                // DEBUG
+                double dsq = gtDosSumQ[currbin][q];
+                double ds2q = gtDos2SumQ[currbin][q];
+                double dsrq = gtDosSumRefQ[currbin][q];
+                // DEBUG
+                // genotype dosage = ads0 + ads1
+                double gtdos = qdosmat + (diploid ? qdospat : 0);
+                gtDosSumQ[currbin][q] += gtdos;
+                gtDos2SumQ[currbin][q] += gtdos*gtdos;
+                gtDosSumRefQ[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
+                // DEBUG
+                // numeric instability check
+                if (gtDosSumQ[currbin][q] == dsq && gtdos > 0)
+                    cerr << "\nWARNING gtDosSumQ[" << currbin << "][" << q << "] misses small values!" << gtdos << endl;
+                if (gtDos2SumQ[currbin][q] == ds2q && gtdos*gtdos > 0)
+                    cerr << "\nWARNING gtDos2SumQ[" << currbin << "][" << q << "] misses small values! " << gtdos*gtdos << endl;
+                if (gtDosSumRefQ[currbin][q] == dsrq && refgt * gtdos > 0)
+                    cerr << "\nWARNING gtDosSumRefQ[" << currbin << "][" << q << "] misses small values!" << refgt * gtdos << endl;
+                // __DEBUG
+
             }
             // hard check
             if (refgt != qgt) { // genotype error -> continue with next sample
@@ -621,6 +698,40 @@ int main(int argc, char *argv[]) {
     cout << fixed; // omit scientific notation
     cout << setprecision(8);
 
+    // for correlation (PCC)
+    size_t gtsumref = 0;
+    size_t gt2sumref = 0;
+    size_t gtsumq = 0;
+    size_t gt2sumq = 0;
+    size_t gtsumrefq = 0;
+    double gtdossumq = 0.0;
+    double gtdos2sumq = 0.0;
+    double gtdossumrefq = 0.0;
+    vector<double> gtdossumqv(Nquery, 0.0);
+    vector<double> gtdos2sumqv(Nquery, 0.0);
+    vector<double> gtdossumrefqv(Nquery, 0.0);
+    for (size_t q = 0; q < Nquery; q++) {
+       gtsumref += gtSumRef[q];
+       gt2sumref += gt2SumRef[q];
+       gtsumq += gtSumQ[q];
+       gt2sumq += gt2SumQ[q];
+       gtsumrefq += gtSumRefQ[q];
+    }
+    if (havedosages) {
+        for (size_t bin = 0; bin < gtDosSumQ.size(); bin++) {
+            for (size_t q = 0; q < Nquery; q++) {
+               gtdossumqv[q] += gtDosSumQ[bin][q];
+               gtdos2sumqv[q] += gtDos2SumQ[bin][q];
+               gtdossumrefqv[q] += gtDosSumRefQ[bin][q];
+            }
+        }
+        for (size_t q = 0; q < Nquery; q++) {
+            gtdossumq += gtdossumqv[q];
+            gtdos2sumq += gtdos2sumqv[q];
+            gtdossumrefq += gtdossumrefqv[q];
+        }
+    }
+
     {
         size_t totalGtErrors = 0;
         size_t totalGtErrors_r2_09 = 0;
@@ -659,6 +770,8 @@ int main(int argc, char *argv[]) {
         }
         double gervar = totgtdev2 / (double)Nquery;
         double gerdev = sqrt(gervar);
+        // correlation r2
+        double r2 = calc_r2_hard(Mcheck*Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
 
         cout << "  Genotype errors (hard):" << endl;
         cout << "    Total genotype errors:             " << totalGtErrors << endl;
@@ -677,7 +790,15 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (R2 >= 0.7): " << avgterrrate_r2_07 << endl;
         cout << "    Average gt error rate (R2 >= 0.5): " << avgterrrate_r2_05 << endl;
         cout << "    Standard GER deviation:            " << gerdev << endl;
-        cout << "    GER variance:                      " << gervar << endl;
+//        cout << "    GER variance:                      " << gervar << endl;
+        cout << "    correlation r2:                    " << r2 << endl;
+        // DEBUG
+        size_t r_num = (Mcheck*Nquery*gtsumrefq - gtsumref * gtsumq);
+        size_t r2_denom_ref = (Mcheck*Nquery*gt2sumref - gtsumref * gtsumref);
+        size_t r2_denom_q = (Mcheck*Nquery*gt2sumq - gtsumq * gtsumq);
+        cout << "rnum:         " << r_num << endl;
+        cout << "r2_denom_ref: " << r2_denom_ref << endl;
+        cout << "r2_denom_q:   " << r2_denom_q << endl;
         cout << endl;
     }
 
@@ -719,6 +840,8 @@ int main(int argc, char *argv[]) {
         }
         double gervar = totgtdev2 / (double)Nquery;
         double gerdev = sqrt(gervar);
+        // correlation r2
+        double r2 = calc_r2_soft(Mcheck*Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
 
         cout << "  Genotype errors (soft):" << endl;
         cout << "    Total genotype errors (soft):             " << totalGtErrorsSoft << endl;
@@ -735,7 +858,15 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (R2 >= 0.7) (soft): " << avgterrrate_r2_07 << endl;
         cout << "    Average gt error rate (R2 >= 0.5) (soft): " << avgterrrate_r2_05 << endl;
         cout << "    Standard GER deviation (soft):            " << gerdev << endl;
-        cout << "    GER variance (soft):                      " << gervar << endl;
+//        cout << "    GER variance (soft):                      " << gervar << endl;
+        cout << "    correlation r2 (soft):                    " << r2 << endl;
+        // DEBUG
+        double r_num = (Mcheck*Nquery*gtdossumrefq - gtsumref * gtdossumq);
+        double r2_denom_ref = (Mcheck*Nquery*gt2sumref - gtsumref * gtsumref);
+        double r2_denom_q = (Mcheck*Nquery*gtdos2sumq - gtdossumq * gtdossumq);
+        cout << "rnum:         " << r_num << endl;
+        cout << "r2_denom_ref: " << r2_denom_ref << endl;
+        cout << "r2_denom_q:   " << r2_denom_q << endl;
         cout << endl;
     }
 
@@ -801,7 +932,7 @@ int main(int argc, char *argv[]) {
         cout << "    Maximum sw error rate:     " << maxswerrrate << endl;
         cout << "    Average sw error rate:     " << avswerrrate << endl;
         cout << "    Standard SER deviation:    " << serdev << endl;
-        cout << "    SER variance:              " << servar << endl;
+//        cout << "    SER variance:              " << servar << endl;
         cout << "    Switch error free targets: " << errfree << endl;
         cout << "    Mat/Pat switches:          " << matpatswitches << endl;
         cout << endl;
@@ -854,7 +985,7 @@ int main(int argc, char *argv[]) {
         cout << "    Maximum sw error rate (typed):     " << maxswerrrate << endl;
         cout << "    Average sw error rate (typed):     " << avswerrrate << endl;
         cout << "    Standard SER deviation (typed):    " << serdev << endl;
-        cout << "    SER variance (typed):              " << servar << endl;
+//        cout << "    SER variance (typed):              " << servar << endl;
         cout << "    Switch error free targets (typed): " << errfree << endl;
         cout << "    Mat/Pat switches (typed):          " << matpatswitches << endl;
         cout << endl;
