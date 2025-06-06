@@ -187,8 +187,10 @@ int main(int argc, char *argv[]) {
         qIDs.push_back(q_hdr->samples[i]);
 
     cout << "Input files:" << endl;
-    cout << "  Reference: " << reffile << endl;
-    cout << "  Query:     " << queryfile << endl;
+    cout << "  Reference:            " << reffile << endl;
+    cout << "  Query:                " << queryfile << endl;
+    if (useshared)
+        cout << "  Shared variants file: " << sharedfile << endl;
     cout << "  Reference variants (from index): Mref = " << Mrefidx << endl;
     cout << "  Reference samples:               Nref = " << Nref << endl;
     cout << "  Query variants (from index):   Mquery = " << Mqidx << endl;
