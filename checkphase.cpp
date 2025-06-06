@@ -111,9 +111,9 @@ inline void updateStatus(const char* statfile, float r, float q) {
 }
 
 double calc_r2_hard(size_t n, size_t sumx, size_t sumx2, size_t sumy, size_t sumy2, size_t sumxy) {
-    size_t r_num = n * sumxy - sumx * sumy;
-    size_t r2_denom_ref = n * sumx2 - sumx * sumx;
-    size_t r2_denom_q = n * sumy2 - sumy * sumy;
+    int64_t r_num = n * sumxy - sumx * sumy;
+    int64_t r2_denom_ref = n * sumx2 - sumx * sumx;
+    int64_t r2_denom_q = n * sumy2 - sumy * sumy;
     double r2 = (r_num / (double)r2_denom_ref) * (r_num / (double)r2_denom_q);
     return r2;
 }
@@ -757,7 +757,7 @@ int main(int argc, char *argv[]) {
         double r2soft = 0.0;
         if (havedosages) {
             r2soft = calc_r2_soft(Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
-            if (!isnan(r2)) { // add only if it is a number, otherwise it's treated as zero
+            if (!isnan(r2soft)) { // add only if it is a number, otherwise it's treated as zero
                 r2SoftSum[currbin] += r2soft;
                 if (maf >= 0.1)
                     r2SoftSum_maf01[currbin] += r2soft;
@@ -1214,9 +1214,9 @@ int main(int argc, char *argv[]) {
         cout << "  Genotype errors (soft):" << endl;
         cout << "    Total genotype errors (soft):                    " << totalGtErrorsSoft << endl;
         cout << "    Total genotype errors (MAF>=0.1) (soft):         " << totalGtErrorsSoft_maf01 << endl;
-        cout << "    Total genotype errors (MAF>=0.01) (soft):        " << totalGtErrorsSoft_maf01 << endl;
-        cout << "    Total genotype errors (MAF>=0.001) (soft):       " << totalGtErrorsSoft_maf01 << endl;
-        cout << "    Total genotype errors (MAF>=0.0001) (soft):      " << totalGtErrorsSoft_maf01 << endl;
+        cout << "    Total genotype errors (MAF>=0.01) (soft):        " << totalGtErrorsSoft_maf001 << endl;
+        cout << "    Total genotype errors (MAF>=0.001) (soft):       " << totalGtErrorsSoft_maf0001 << endl;
+        cout << "    Total genotype errors (MAF>=0.0001) (soft):      " << totalGtErrorsSoft_maf00001 << endl;
         cout << "    Minimum genotype errors (soft):                  " << gtErrorMinSoft << endl;
         cout << "    Maximum genotype errors (soft):                  " << gtErrorMaxSoft << endl;
         cout << "    Average gt err per sample (soft):                " << avgterr << endl;
