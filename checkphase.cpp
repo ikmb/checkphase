@@ -277,9 +277,41 @@ int main(int argc, char *argv[]) {
     vector<size_t> gtSumQ(Nquery, 0.0);
     vector<size_t> gt2SumQ(Nquery, 0.0);
     vector<size_t> gtSumRefQ(Nquery, 0.0);
-    vector<vector<double>> gtDosSumQ;    // bins for a couple of variants, then for each query
-    vector<vector<double>> gtDos2SumQ;   // bins for a couple of variants, then for each query
-    vector<vector<double>> gtDosSumRefQ; // bins for a couple of variants, then for each query
+    vector<vector<double>> gtDosSumQ;      // bins for a couple of variants, then for each query
+    vector<vector<double>> gtDos2SumQ;     // bins for a couple of variants, then for each query
+    vector<vector<double>> gtDosSumRefQ;   // bins for a couple of variants, then for each query
+    vector<size_t> gtSumRef_maf01(Nquery, 0.0);
+    vector<size_t> gt2SumRef_maf01(Nquery, 0.0);
+    vector<size_t> gtSumQ_maf01(Nquery, 0.0);
+    vector<size_t> gt2SumQ_maf01(Nquery, 0.0);
+    vector<size_t> gtSumRefQ_maf01(Nquery, 0.0);
+    vector<vector<double>> gtDosSumQ_maf01;
+    vector<vector<double>> gtDos2SumQ_maf01;
+    vector<vector<double>> gtDosSumRefQ_maf01;
+    vector<size_t> gtSumRef_maf001(Nquery, 0.0);
+    vector<size_t> gt2SumRef_maf001(Nquery, 0.0);
+    vector<size_t> gtSumQ_maf001(Nquery, 0.0);
+    vector<size_t> gt2SumQ_maf001(Nquery, 0.0);
+    vector<size_t> gtSumRefQ_maf001(Nquery, 0.0);
+    vector<vector<double>> gtDosSumQ_maf001;
+    vector<vector<double>> gtDos2SumQ_maf001;
+    vector<vector<double>> gtDosSumRefQ_maf001;
+    vector<size_t> gtSumRef_maf0001(Nquery, 0.0);
+    vector<size_t> gt2SumRef_maf0001(Nquery, 0.0);
+    vector<size_t> gtSumQ_maf0001(Nquery, 0.0);
+    vector<size_t> gt2SumQ_maf0001(Nquery, 0.0);
+    vector<size_t> gtSumRefQ_maf0001(Nquery, 0.0);
+    vector<vector<double>> gtDosSumQ_maf0001;
+    vector<vector<double>> gtDos2SumQ_maf0001;
+    vector<vector<double>> gtDosSumRefQ_maf0001;
+    vector<size_t> gtSumRef_maf00001(Nquery, 0.0);
+    vector<size_t> gt2SumRef_maf00001(Nquery, 0.0);
+    vector<size_t> gtSumQ_maf00001(Nquery, 0.0);
+    vector<size_t> gt2SumQ_maf00001(Nquery, 0.0);
+    vector<size_t> gtSumRefQ_maf00001(Nquery, 0.0);
+    vector<vector<double>> gtDosSumQ_maf00001;
+    vector<vector<double>> gtDos2SumQ_maf00001;
+    vector<vector<double>> gtDosSumRefQ_maf00001;
     vector<double> r2Sum;              // sum of per variant r2, bins for each couple of queries
     vector<double> r2Sum_maf01;        // sum of per variant r2 for variants of MAF>=0.1, bins for each couple of queries
     vector<double> r2Sum_maf001;       // sum of per variant r2 for variants of MAF>=0.01, bins for each couple of queries
@@ -347,6 +379,18 @@ int main(int argc, char *argv[]) {
             gtDosSumQ.push_back(vector<double>(Nquery, 0.0));
             gtDos2SumQ.push_back(vector<double>(Nquery, 0.0));
             gtDosSumRefQ.push_back(vector<double>(Nquery, 0.0));
+            gtDosSumQ_maf01.push_back(vector<double>(Nquery, 0.0));
+            gtDos2SumQ_maf01.push_back(vector<double>(Nquery, 0.0));
+            gtDosSumRefQ_maf01.push_back(vector<double>(Nquery, 0.0));
+            gtDosSumQ_maf001.push_back(vector<double>(Nquery, 0.0));
+            gtDos2SumQ_maf001.push_back(vector<double>(Nquery, 0.0));
+            gtDosSumRefQ_maf001.push_back(vector<double>(Nquery, 0.0));
+            gtDosSumQ_maf0001.push_back(vector<double>(Nquery, 0.0));
+            gtDos2SumQ_maf0001.push_back(vector<double>(Nquery, 0.0));
+            gtDosSumRefQ_maf0001.push_back(vector<double>(Nquery, 0.0));
+            gtDosSumQ_maf00001.push_back(vector<double>(Nquery, 0.0));
+            gtDos2SumQ_maf00001.push_back(vector<double>(Nquery, 0.0));
+            gtDosSumRefQ_maf00001.push_back(vector<double>(Nquery, 0.0));
             r2Sum.push_back(0.0);
             r2Sum_maf01.push_back(0.0);
             r2Sum_maf001.push_back(0.0);
@@ -537,6 +581,34 @@ int main(int argc, char *argv[]) {
             gtSumQ[q] += qgt;
             gt2SumQ[q] += qgt*qgt;
             gtSumRefQ[q] += refgt * qgt;
+            if (maf >= 0.1) {
+                gtSumRef_maf01[q] += refgt;
+                gt2SumRef_maf01[q] += refgt*refgt;
+                gtSumQ_maf01[q] += qgt;
+                gt2SumQ_maf01[q] += qgt*qgt;
+                gtSumRefQ_maf01[q] += refgt * qgt;
+            }
+            if (maf >= 0.01) {
+                gtSumRef_maf001[q] += refgt;
+                gt2SumRef_maf001[q] += refgt*refgt;
+                gtSumQ_maf001[q] += qgt;
+                gt2SumQ_maf001[q] += qgt*qgt;
+                gtSumRefQ_maf001[q] += refgt * qgt;
+            }
+            if (maf >= 0.001) {
+                gtSumRef_maf0001[q] += refgt;
+                gt2SumRef_maf0001[q] += refgt*refgt;
+                gtSumQ_maf0001[q] += qgt;
+                gt2SumQ_maf0001[q] += qgt*qgt;
+                gtSumRefQ_maf0001[q] += refgt * qgt;
+            }
+            if (maf >= 0.0001) {
+                gtSumRef_maf00001[q] += refgt;
+                gt2SumRef_maf00001[q] += refgt*refgt;
+                gtSumQ_maf00001[q] += qgt;
+                gt2SumQ_maf00001[q] += qgt*qgt;
+                gtSumRefQ_maf00001[q] += refgt * qgt;
+            }
             // for variant-wise correlation
             gtsumref += refgt;
             gt2sumref += refgt*refgt;
@@ -596,6 +668,26 @@ int main(int argc, char *argv[]) {
                 gtDosSumQ[currbin][q] += gtdos;
                 gtDos2SumQ[currbin][q] += gtdos*gtdos;
                 gtDosSumRefQ[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
+                if (maf >= 0.1) {
+                    gtDosSumQ_maf01[currbin][q] += gtdos;
+                    gtDos2SumQ_maf01[currbin][q] += gtdos*gtdos;
+                    gtDosSumRefQ_maf01[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
+                }
+                if (maf >= 0.01) {
+                    gtDosSumQ_maf001[currbin][q] += gtdos;
+                    gtDos2SumQ_maf001[currbin][q] += gtdos*gtdos;
+                    gtDosSumRefQ_maf001[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
+                }
+                if (maf >= 0.001) {
+                    gtDosSumQ_maf0001[currbin][q] += gtdos;
+                    gtDos2SumQ_maf0001[currbin][q] += gtdos*gtdos;
+                    gtDosSumRefQ_maf0001[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
+                }
+                if (maf >= 0.0001) {
+                    gtDosSumQ_maf00001[currbin][q] += gtdos;
+                    gtDos2SumQ_maf00001[currbin][q] += gtdos*gtdos;
+                    gtDosSumRefQ_maf00001[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
+                }
                 gtdossumq += gtdos;
                 gtdos2sumq += gtdos*gtdos;
                 gtdossumrefq += (refgt * gtdos) / (diploid ? 1 : 2);
@@ -764,28 +856,116 @@ int main(int argc, char *argv[]) {
     double gtdossumq = 0.0;
     double gtdos2sumq = 0.0;
     double gtdossumrefq = 0.0;
+    size_t gtsumref_maf01 = 0;
+    size_t gt2sumref_maf01 = 0;
+    size_t gtsumq_maf01 = 0;
+    size_t gt2sumq_maf01 = 0;
+    size_t gtsumrefq_maf01 = 0;
+    double gtdossumq_maf01 = 0.0;
+    double gtdos2sumq_maf01 = 0.0;
+    double gtdossumrefq_maf01 = 0.0;
+    size_t gtsumref_maf001 = 0;
+    size_t gt2sumref_maf001 = 0;
+    size_t gtsumq_maf001 = 0;
+    size_t gt2sumq_maf001 = 0;
+    size_t gtsumrefq_maf001 = 0;
+    double gtdossumq_maf001 = 0.0;
+    double gtdos2sumq_maf001 = 0.0;
+    double gtdossumrefq_maf001 = 0.0;
+    size_t gtsumref_maf0001 = 0;
+    size_t gt2sumref_maf0001 = 0;
+    size_t gtsumq_maf0001 = 0;
+    size_t gt2sumq_maf0001 = 0;
+    size_t gtsumrefq_maf0001 = 0;
+    double gtdossumq_maf0001 = 0.0;
+    double gtdos2sumq_maf0001 = 0.0;
+    double gtdossumrefq_maf0001 = 0.0;
+    size_t gtsumref_maf00001 = 0;
+    size_t gt2sumref_maf00001 = 0;
+    size_t gtsumq_maf00001 = 0;
+    size_t gt2sumq_maf00001 = 0;
+    size_t gtsumrefq_maf00001 = 0;
+    double gtdossumq_maf00001 = 0.0;
+    double gtdos2sumq_maf00001 = 0.0;
+    double gtdossumrefq_maf00001 = 0.0;
     vector<double> gtdossumqv(Nquery, 0.0);
     vector<double> gtdos2sumqv(Nquery, 0.0);
     vector<double> gtdossumrefqv(Nquery, 0.0);
+    vector<double> gtdossumqv_maf01(Nquery, 0.0);
+    vector<double> gtdos2sumqv_maf01(Nquery, 0.0);
+    vector<double> gtdossumrefqv_maf01(Nquery, 0.0);
+    vector<double> gtdossumqv_maf001(Nquery, 0.0);
+    vector<double> gtdos2sumqv_maf001(Nquery, 0.0);
+    vector<double> gtdossumrefqv_maf001(Nquery, 0.0);
+    vector<double> gtdossumqv_maf0001(Nquery, 0.0);
+    vector<double> gtdos2sumqv_maf0001(Nquery, 0.0);
+    vector<double> gtdossumrefqv_maf0001(Nquery, 0.0);
+    vector<double> gtdossumqv_maf00001(Nquery, 0.0);
+    vector<double> gtdos2sumqv_maf00001(Nquery, 0.0);
+    vector<double> gtdossumrefqv_maf00001(Nquery, 0.0);
     for (size_t q = 0; q < Nquery; q++) {
-       gtsumref += gtSumRef[q];
+       gtsumref  += gtSumRef[q];
        gt2sumref += gt2SumRef[q];
-       gtsumq += gtSumQ[q];
-       gt2sumq += gt2SumQ[q];
+       gtsumq    += gtSumQ[q];
+       gt2sumq   += gt2SumQ[q];
        gtsumrefq += gtSumRefQ[q];
+       gtsumref_maf01  += gtSumRef_maf01[q];
+       gt2sumref_maf01 += gt2SumRef_maf01[q];
+       gtsumq_maf01    += gtSumQ_maf01[q];
+       gt2sumq_maf01   += gt2SumQ_maf01[q];
+       gtsumrefq_maf01 += gtSumRefQ_maf01[q];
+       gtsumref_maf001  += gtSumRef_maf001[q];
+       gt2sumref_maf001 += gt2SumRef_maf001[q];
+       gtsumq_maf001    += gtSumQ_maf001[q];
+       gt2sumq_maf001   += gt2SumQ_maf001[q];
+       gtsumrefq_maf001 += gtSumRefQ_maf001[q];
+       gtsumref_maf0001  += gtSumRef_maf0001[q];
+       gt2sumref_maf0001 += gt2SumRef_maf0001[q];
+       gtsumq_maf0001    += gtSumQ_maf0001[q];
+       gt2sumq_maf0001   += gt2SumQ_maf0001[q];
+       gtsumrefq_maf0001 += gtSumRefQ_maf0001[q];
+       gtsumref_maf00001  += gtSumRef_maf00001[q];
+       gt2sumref_maf00001 += gt2SumRef_maf00001[q];
+       gtsumq_maf00001    += gtSumQ_maf00001[q];
+       gt2sumq_maf00001   += gt2SumQ_maf00001[q];
+       gtsumrefq_maf00001 += gtSumRefQ_maf00001[q];
     }
     if (havedosages) {
         for (size_t bin = 0; bin < gtDosSumQ.size(); bin++) {
             for (size_t q = 0; q < Nquery; q++) {
-               gtdossumqv[q] += gtDosSumQ[bin][q];
-               gtdos2sumqv[q] += gtDos2SumQ[bin][q];
+               gtdossumqv[q]    += gtDosSumQ[bin][q];
+               gtdos2sumqv[q]   += gtDos2SumQ[bin][q];
                gtdossumrefqv[q] += gtDosSumRefQ[bin][q];
+               gtdossumqv_maf01[q]    += gtDosSumQ_maf01[bin][q];
+               gtdos2sumqv_maf01[q]   += gtDos2SumQ_maf01[bin][q];
+               gtdossumrefqv_maf01[q] += gtDosSumRefQ_maf01[bin][q];
+               gtdossumqv_maf001[q]    += gtDosSumQ_maf001[bin][q];
+               gtdos2sumqv_maf001[q]   += gtDos2SumQ_maf001[bin][q];
+               gtdossumrefqv_maf001[q] += gtDosSumRefQ_maf001[bin][q];
+               gtdossumqv_maf0001[q]    += gtDosSumQ_maf0001[bin][q];
+               gtdos2sumqv_maf0001[q]   += gtDos2SumQ_maf0001[bin][q];
+               gtdossumrefqv_maf0001[q] += gtDosSumRefQ_maf0001[bin][q];
+               gtdossumqv_maf00001[q]    += gtDosSumQ_maf00001[bin][q];
+               gtdos2sumqv_maf00001[q]   += gtDos2SumQ_maf00001[bin][q];
+               gtdossumrefqv_maf00001[q] += gtDosSumRefQ_maf00001[bin][q];
             }
         }
         for (size_t q = 0; q < Nquery; q++) {
-            gtdossumq += gtdossumqv[q];
-            gtdos2sumq += gtdos2sumqv[q];
+            gtdossumq    += gtdossumqv[q];
+            gtdos2sumq   += gtdos2sumqv[q];
             gtdossumrefq += gtdossumrefqv[q];
+            gtdossumq_maf01    += gtdossumqv_maf01[q];
+            gtdos2sumq_maf01   += gtdos2sumqv_maf01[q];
+            gtdossumrefq_maf01 += gtdossumrefqv_maf01[q];
+            gtdossumq_maf001    += gtdossumqv_maf001[q];
+            gtdos2sumq_maf001   += gtdos2sumqv_maf001[q];
+            gtdossumrefq_maf001 += gtdossumrefqv_maf001[q];
+            gtdossumq_maf0001    += gtdossumqv_maf0001[q];
+            gtdos2sumq_maf0001   += gtdos2sumqv_maf0001[q];
+            gtdossumrefq_maf0001 += gtdossumrefqv_maf0001[q];
+            gtdossumq_maf00001    += gtdossumqv_maf00001[q];
+            gtdos2sumq_maf00001   += gtdos2sumqv_maf00001[q];
+            gtdossumrefq_maf00001 += gtdossumrefqv_maf00001[q];
         }
     }
 
@@ -834,6 +1014,46 @@ int main(int argc, char *argv[]) {
 
         // correlation r2 (complete)
         double r2 = calc_r2_hard(Mcheck*Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
+        double r2_maf01 = calc_r2_hard(Mmaf01*Nquery, gtsumref_maf01, gt2sumref_maf01, gtsumq_maf01, gt2sumq_maf01, gtsumrefq_maf01);
+        double r2_maf001 = calc_r2_hard(Mmaf001*Nquery, gtsumref_maf001, gt2sumref_maf001, gtsumq_maf001, gt2sumq_maf001, gtsumrefq_maf001);
+        double r2_maf0001 = calc_r2_hard(Mmaf0001*Nquery, gtsumref_maf0001, gt2sumref_maf0001, gtsumq_maf0001, gt2sumq_maf0001, gtsumrefq_maf0001);
+        double r2_maf00001 = calc_r2_hard(Mmaf00001*Nquery, gtsumref_maf00001, gt2sumref_maf00001, gtsumq_maf00001, gt2sumq_maf00001, gtsumrefq_maf00001);
+
+        // correlation r2 (sample-wise)
+        double r2_sav = 0.0;
+        double r2_sav_maf01 = 0.0;
+        double r2_sav_maf001 = 0.0;
+        double r2_sav_maf0001 = 0.0;
+        double r2_sav_maf00001 = 0.0;
+        double r2_smin = 999.0;
+        double r2_smax = 0.0;
+        // store values for each sample (not required yet, but can be used later)
+        vector<double> r2v(Nquery);
+        vector<double> r2v_maf01(Nquery);
+        vector<double> r2v_maf001(Nquery);
+        vector<double> r2v_maf0001(Nquery);
+        vector<double> r2v_maf00001(Nquery);
+        for (size_t q = 0; q < Nquery; q++) {
+            r2v[q] = calc_r2_hard(Mcheck, gtSumRef[q], gt2SumRef[q], gtSumQ[q], gt2SumQ[q], gtSumRefQ[q]);
+            r2v_maf01[q] = calc_r2_hard(Mmaf01, gtSumRef_maf01[q], gt2SumRef_maf01[q], gtSumQ_maf01[q], gt2SumQ_maf01[q], gtSumRefQ_maf01[q]);
+            r2v_maf001[q] = calc_r2_hard(Mmaf001, gtSumRef_maf001[q], gt2SumRef_maf001[q], gtSumQ_maf001[q], gt2SumQ_maf001[q], gtSumRefQ_maf001[q]);
+            r2v_maf0001[q] = calc_r2_hard(Mmaf0001, gtSumRef_maf0001[q], gt2SumRef_maf0001[q], gtSumQ_maf0001[q], gt2SumQ_maf0001[q], gtSumRefQ_maf0001[q]);
+            r2v_maf00001[q] = calc_r2_hard(Mmaf00001, gtSumRef_maf00001[q], gt2SumRef_maf00001[q], gtSumQ_maf00001[q], gt2SumQ_maf00001[q], gtSumRefQ_maf00001[q]);
+            r2_sav += r2v[q]; // for the average
+            r2_sav_maf01    += r2v_maf01[q]; // for the average
+            r2_sav_maf001   += r2v_maf001[q]; // for the average
+            r2_sav_maf0001  += r2v_maf0001[q]; // for the average
+            r2_sav_maf00001 += r2v_maf00001[q]; // for the average
+            if (r2v[q] < r2_smin)
+                r2_smin = r2v[q];
+            if (r2v[q] > r2_smax)
+                r2_smax = r2v[q];
+        }
+        r2_sav /= Nquery;
+        r2_sav_maf01 /= Nquery;
+        r2_sav_maf001 /= Nquery;
+        r2_sav_maf0001 /= Nquery;
+        r2_sav_maf00001 /= Nquery;
 
         // correlation r2 (variant-wise)
         double r2_vav = 0.0;
@@ -854,47 +1074,40 @@ int main(int argc, char *argv[]) {
         r2_vav_maf0001 /= Mmaf0001;
         r2_vav_maf00001 /= Mmaf00001;
 
-        // correlation r2 (sample-wise)
-        double r2_sav = 0.0;
-        double r2_smin = 999.0;
-        double r2_smax = 0.0;
-        vector<double> r2v(Nquery);
-        for (size_t q = 0; q < Nquery; q++) {
-            r2v[q] = calc_r2_hard(Mcheck, gtSumRef[q], gt2SumRef[q], gtSumQ[q], gt2SumQ[q], gtSumRefQ[q]);
-            r2_sav += r2v[q]; // for the average
-            if (r2v[q] < r2_smin)
-                r2_smin = r2v[q];
-            if (r2v[q] > r2_smax)
-                r2_smax = r2v[q];
-        }
-        r2_sav /= Nquery;
-
         cout << "  Genotype errors (hard):" << endl;
-        cout << "    Total genotype errors:                     " << totalGtErrors << endl;
-        cout << "    Total genotype errors (MAF>=0.1):          " << totalGtErrors_maf01 << endl;
-        cout << "    Total genotype errors (MAF>=0.01):         " << totalGtErrors_maf001 << endl;
-        cout << "    Total genotype errors (MAF>=0.001):        " << totalGtErrors_maf0001 << endl;
-        cout << "    Total genotype errors (MAF>=0.0001):       " << totalGtErrors_maf00001 << endl;
-        cout << "    Minimum genotype errors:                   " << gtErrorMin << endl;
-        cout << "    Maximum genotype errors:                   " << gtErrorMax << endl;
-        cout << "    Average gt err per sample:                 " << avgterr << endl;
-        cout << "    Minimum gt error rate:                     " << mingterrrate << endl;
-        cout << "    Maximum gt error rate:                     " << maxgterrrate << endl;
-        cout << "    Average gt error rate:                     " << avgterrrate << endl;
-        cout << "    Average gt error rate (MAF>=0.1):          " << avgterrrate_maf01 << endl;
-        cout << "    Average gt error rate (MAF>=0.01):         " << avgterrrate_maf001 << endl;
-        cout << "    Average gt error rate (MAF>=0.001):        " << avgterrrate_maf0001 << endl;
-        cout << "    Average gt error rate (MAF>=0.0001):       " << avgterrrate_maf00001 << endl;
-        cout << "    Standard GER deviation:                    " << gerdev << endl;
-        cout << "    correlation r2 (complete):                 " << r2 << endl;
-        cout << "    correlation r2 (var average):              " << r2_vav << endl;
-        cout << "    correlation r2 (var average, MAF>=0.1):    " << r2_vav_maf01 << endl;
-        cout << "    correlation r2 (var average, MAF>=0.01):   " << r2_vav_maf001 << endl;
-        cout << "    correlation r2 (var average, MAF>=0.001):  " << r2_vav_maf0001 << endl;
-        cout << "    correlation r2 (var average, MAF>=0.0001): " << r2_vav_maf00001 << endl;
-        cout << "    correlation r2 (sample average):           " << r2_sav << endl;
-        cout << "    min correlation r2 (sample):               " << r2_smin << endl;
-        cout << "    max correlation r2 (sample):               " << r2_smax << endl;
+        cout << "    Total genotype errors:                    " << totalGtErrors << endl;
+        cout << "    Total genotype errors (MAF>=0.1):         " << totalGtErrors_maf01 << endl;
+        cout << "    Total genotype errors (MAF>=0.01):        " << totalGtErrors_maf001 << endl;
+        cout << "    Total genotype errors (MAF>=0.001):       " << totalGtErrors_maf0001 << endl;
+        cout << "    Total genotype errors (MAF>=0.0001):      " << totalGtErrors_maf00001 << endl;
+        cout << "    Minimum genotype errors:                  " << gtErrorMin << endl;
+        cout << "    Maximum genotype errors:                  " << gtErrorMax << endl;
+        cout << "    Average gt err per sample:                " << avgterr << endl;
+        cout << "    Minimum gt error rate:                    " << mingterrrate << endl;
+        cout << "    Maximum gt error rate:                    " << maxgterrrate << endl;
+        cout << "    Average gt error rate:                    " << avgterrrate << endl;
+        cout << "    Average gt error rate (MAF>=0.1):         " << avgterrrate_maf01 << endl;
+        cout << "    Average gt error rate (MAF>=0.01):        " << avgterrrate_maf001 << endl;
+        cout << "    Average gt error rate (MAF>=0.001):       " << avgterrrate_maf0001 << endl;
+        cout << "    Average gt error rate (MAF>=0.0001):      " << avgterrrate_maf00001 << endl;
+        cout << "    Standard GER deviation:                   " << gerdev << endl;
+        cout << "    correlation r2 (complete):                " << r2 << endl;
+        cout << "    correlation r2 (complete, MAF>=0.1):      " << r2_maf01 << endl;
+        cout << "    correlation r2 (complete, MAF>=0.01):     " << r2_maf001 << endl;
+        cout << "    correlation r2 (complete, MAF>=0.001):    " << r2_maf0001 << endl;
+        cout << "    correlation r2 (complete, MAF>=0.0001):   " << r2_maf00001 << endl;
+        cout << "    correlation r2 (sample av.):              " << r2_sav << endl;
+        cout << "    correlation r2 (sample av., MAF>=0.1):    " << r2_sav_maf01 << endl;
+        cout << "    correlation r2 (sample av., MAF>=0.01):   " << r2_sav_maf001 << endl;
+        cout << "    correlation r2 (sample av., MAF>=0.001):  " << r2_sav_maf0001 << endl;
+        cout << "    correlation r2 (sample av., MAF>=0.0001): " << r2_sav_maf00001 << endl;
+        cout << "    min correlation r2 (sample):              " << r2_smin << endl;
+        cout << "    max correlation r2 (sample):              " << r2_smax << endl;
+        cout << "    correlation r2 (var av.):                 " << r2_vav << endl;
+        cout << "    correlation r2 (var av., MAF>=0.1):       " << r2_vav_maf01 << endl;
+        cout << "    correlation r2 (var av., MAF>=0.01):      " << r2_vav_maf001 << endl;
+        cout << "    correlation r2 (var av., MAF>=0.001):     " << r2_vav_maf0001 << endl;
+        cout << "    correlation r2 (var av., MAF>=0.0001):    " << r2_vav_maf00001 << endl;
         cout << endl;
     }
 
@@ -943,6 +1156,46 @@ int main(int argc, char *argv[]) {
 
         // correlation r2 (complete)
         double r2 = calc_r2_soft(Mcheck*Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
+        double r2_maf01 = calc_r2_soft(Mmaf01*Nquery, gtsumref_maf01, gt2sumref_maf01, gtdossumq_maf01, gtdos2sumq_maf01, gtdossumrefq_maf01);
+        double r2_maf001 = calc_r2_soft(Mmaf001*Nquery, gtsumref_maf001, gt2sumref_maf001, gtdossumq_maf001, gtdos2sumq_maf001, gtdossumrefq_maf001);
+        double r2_maf0001 = calc_r2_soft(Mmaf0001*Nquery, gtsumref_maf0001, gt2sumref_maf0001, gtdossumq_maf0001, gtdos2sumq_maf0001, gtdossumrefq_maf0001);
+        double r2_maf00001 = calc_r2_soft(Mmaf00001*Nquery, gtsumref_maf00001, gt2sumref_maf00001, gtdossumq_maf00001, gtdos2sumq_maf00001, gtdossumrefq_maf00001);
+
+        // correlation r2 (sample-wise)
+        double r2_sav = 0.0;
+        double r2_sav_maf01 = 0.0;
+        double r2_sav_maf001 = 0.0;
+        double r2_sav_maf0001 = 0.0;
+        double r2_sav_maf00001 = 0.0;
+        double r2_smin = 999.0;
+        double r2_smax = 0.0;
+        // store values for each sample (not required yet, but can be used later)
+        vector<double> r2v(Nquery);
+        vector<double> r2v_maf01(Nquery);
+        vector<double> r2v_maf001(Nquery);
+        vector<double> r2v_maf0001(Nquery);
+        vector<double> r2v_maf00001(Nquery);
+        for (size_t q = 0; q < Nquery; q++) {
+            r2v[q] = calc_r2_soft(Mcheck, gtSumRef[q], gt2SumRef[q], gtdossumqv[q], gtdos2sumqv[q], gtdossumrefqv[q]);
+            r2v_maf01[q] = calc_r2_soft(Mmaf01, gtSumRef_maf01[q], gt2SumRef_maf01[q], gtdossumqv_maf01[q], gtdos2sumqv_maf01[q], gtdossumrefqv_maf01[q]);
+            r2v_maf001[q] = calc_r2_soft(Mmaf001, gtSumRef_maf001[q], gt2SumRef_maf001[q], gtdossumqv_maf001[q], gtdos2sumqv_maf001[q], gtdossumrefqv_maf001[q]);
+            r2v_maf0001[q] = calc_r2_soft(Mmaf0001, gtSumRef_maf0001[q], gt2SumRef_maf0001[q], gtdossumqv_maf0001[q], gtdos2sumqv_maf0001[q], gtdossumrefqv_maf0001[q]);
+            r2v_maf00001[q] = calc_r2_soft(Mmaf00001, gtSumRef_maf00001[q], gt2SumRef_maf00001[q], gtdossumqv_maf00001[q], gtdos2sumqv_maf00001[q], gtdossumrefqv_maf00001[q]);
+            r2_sav += r2v[q]; // for the average
+            r2_sav_maf01    += r2v_maf01[q]; // for the average
+            r2_sav_maf001   += r2v_maf001[q]; // for the average
+            r2_sav_maf0001  += r2v_maf0001[q]; // for the average
+            r2_sav_maf00001 += r2v_maf00001[q]; // for the average
+            if (r2v[q] < r2_smin)
+                r2_smin = r2v[q];
+            if (r2v[q] > r2_smax)
+                r2_smax = r2v[q];
+        }
+        r2_sav /= Nquery;
+        r2_sav_maf01 /= Nquery;
+        r2_sav_maf001 /= Nquery;
+        r2_sav_maf0001 /= Nquery;
+        r2_sav_maf00001 /= Nquery;
 
         // correlation r2 (variant-wise)
         double r2_vav = 0.0;
@@ -963,47 +1216,39 @@ int main(int argc, char *argv[]) {
         r2_vav_maf0001 /= Mmaf0001;
         r2_vav_maf00001 /= Mmaf00001;
 
-        // correlation r2 (sample-wise)
-        double r2_sav = 0.0;
-        double r2_smin = 999.0;
-        double r2_smax = 0.0;
-        vector<double> r2v(Nquery);
-        for (size_t q = 0; q < Nquery; q++) {
-            r2v[q] = calc_r2_soft(Mcheck, gtSumRef[q], gt2SumRef[q], gtdossumqv[q], gtdos2sumqv[q], gtdossumrefqv[q]);
-            r2_sav += r2v[q]; // for the average
-            if (r2v[q] < r2_smin)
-                r2_smin = r2v[q];
-            if (r2v[q] > r2_smax)
-                r2_smax = r2v[q];
-        }
-        r2_sav /= Nquery;
-
         cout << "  Genotype errors (soft):" << endl;
-        cout << "    Total genotype errors (soft):                     " << totalGtErrorsSoft << endl;
-        cout << "    Total genotype errors (MAF>=0.1) (soft):          " << totalGtErrorsSoft_maf01 << endl;
-        cout << "    Total genotype errors (MAF>=0.01) (soft):         " << totalGtErrorsSoft_maf01 << endl;
-        cout << "    Total genotype errors (MAF>=0.001) (soft):        " << totalGtErrorsSoft_maf01 << endl;
-        cout << "    Total genotype errors (MAF>=0.0001) (soft):       " << totalGtErrorsSoft_maf01 << endl;
-        cout << "    Minimum genotype errors (soft):                   " << gtErrorMinSoft << endl;
-        cout << "    Maximum genotype errors (soft):                   " << gtErrorMaxSoft << endl;
-        cout << "    Average gt err per sample (soft):                 " << avgterr << endl;
-        cout << "    Minimum gt error rate (soft):                     " << mingterrrate << endl;
-        cout << "    Maximum gt error rate (soft):                     " << maxgterrrate << endl;
-        cout << "    Average gt error rate (soft):                     " << avgterrrate << endl;
-        cout << "    Average gt error rate (MAF>=0.1)(soft):           " << avgterrrate_maf01 << endl;
-        cout << "    Average gt error rate (MAF>=0.01)(soft):          " << avgterrrate_maf001 << endl;
-        cout << "    Average gt error rate (MAF>=0.001)(soft):         " << avgterrrate_maf0001 << endl;
-        cout << "    Average gt error rate (MAF>=0.0001)(soft):        " << avgterrrate_maf00001 << endl;
-        cout << "    Standard GER deviation (soft):                    " << gerdev << endl;
-        cout << "    correlation r2 (complete) (soft):                 " << r2 << endl;
-        cout << "    correlation r2 (var average) (soft):              " << r2_vav << endl;
-        cout << "    correlation r2 (var average, MAF>=0.1) (soft):    " << r2_vav_maf01 << endl;
-        cout << "    correlation r2 (var average, MAF>=0.01) (soft):   " << r2_vav_maf001 << endl;
-        cout << "    correlation r2 (var average, MAF>=0.001) (soft):  " << r2_vav_maf0001 << endl;
-        cout << "    correlation r2 (var average, MAF>=0.0001) (soft): " << r2_vav_maf00001 << endl;
-        cout << "    correlation r2 (sample average) (soft):           " << r2_sav << endl;
-        cout << "    min correlation r2 (sample) (soft):               " << r2_smin << endl;
-        cout << "    max correlation r2 (sample) (soft):               " << r2_smax << endl;
+        cout << "    Total genotype errors (soft):                    " << totalGtErrorsSoft << endl;
+        cout << "    Total genotype errors (MAF>=0.1) (soft):         " << totalGtErrorsSoft_maf01 << endl;
+        cout << "    Total genotype errors (MAF>=0.01) (soft):        " << totalGtErrorsSoft_maf01 << endl;
+        cout << "    Total genotype errors (MAF>=0.001) (soft):       " << totalGtErrorsSoft_maf01 << endl;
+        cout << "    Total genotype errors (MAF>=0.0001) (soft):      " << totalGtErrorsSoft_maf01 << endl;
+        cout << "    Minimum genotype errors (soft):                  " << gtErrorMinSoft << endl;
+        cout << "    Maximum genotype errors (soft):                  " << gtErrorMaxSoft << endl;
+        cout << "    Average gt err per sample (soft):                " << avgterr << endl;
+        cout << "    Minimum gt error rate (soft):                    " << mingterrrate << endl;
+        cout << "    Maximum gt error rate (soft):                    " << maxgterrrate << endl;
+        cout << "    Average gt error rate (soft):                    " << avgterrrate << endl;
+        cout << "    Average gt error rate (MAF>=0.1)(soft):          " << avgterrrate_maf01 << endl;
+        cout << "    Average gt error rate (MAF>=0.01)(soft):         " << avgterrrate_maf001 << endl;
+        cout << "    Average gt error rate (MAF>=0.001)(soft):        " << avgterrrate_maf0001 << endl;
+        cout << "    Average gt error rate (MAF>=0.0001)(soft):       " << avgterrrate_maf00001 << endl;
+        cout << "    Standard GER deviation (soft):                   " << gerdev << endl;
+        cout << "    correlation r2 (complete) (soft):                " << r2 << endl;
+        cout << "    correlation r2 (complete, MAF>=0.1) (soft):      " << r2_maf01 << endl;
+        cout << "    correlation r2 (complete, MAF>=0.01) (soft):     " << r2_maf001 << endl;
+        cout << "    correlation r2 (complete, MAF>=0.001) (soft):    " << r2_maf0001 << endl;
+        cout << "    correlation r2 (complete, MAF>=0.0001) (soft):   " << r2_maf00001 << endl;        cout << "    correlation r2 (sample av.) (soft):              " << r2_sav << endl;
+        cout << "    correlation r2 (sample av., MAF>=0.1) (soft):    " << r2_sav_maf01 << endl;
+        cout << "    correlation r2 (sample av., MAF>=0.01) (soft):   " << r2_sav_maf001 << endl;
+        cout << "    correlation r2 (sample av., MAF>=0.001) (soft):  " << r2_sav_maf0001 << endl;
+        cout << "    correlation r2 (sample av., MAF>=0.0001) (soft): " << r2_sav_maf00001 << endl;
+        cout << "    min correlation r2 (sample) (soft):              " << r2_smin << endl;
+        cout << "    max correlation r2 (sample) (soft):              " << r2_smax << endl;
+        cout << "    correlation r2 (var av.) (soft):                 " << r2_vav << endl;
+        cout << "    correlation r2 (var av., MAF>=0.1) (soft):       " << r2_vav_maf01 << endl;
+        cout << "    correlation r2 (var av., MAF>=0.01) (soft):      " << r2_vav_maf001 << endl;
+        cout << "    correlation r2 (var av., MAF>=0.001) (soft):     " << r2_vav_maf0001 << endl;
+        cout << "    correlation r2 (var av., MAF>=0.0001) (soft):    " << r2_vav_maf00001 << endl;
         cout << endl;
     }
 
