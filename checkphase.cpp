@@ -29,6 +29,7 @@
 #include <htslib/vcf.h>
 #include <htslib/synced_bcf_reader.h>
 
+#include "Args.h"
 #include "utils.h"
 
 using namespace std;
@@ -109,11 +110,6 @@ inline void updateStatus(const char* statfile, float r, float q) {
         stat << "R: " << r << "\nQ: " << q << endl;
 }
 
-inline void printUsageAndDie(const char* argv0) {
-    cerr << "ERROR: Please provide two input VCFs/BCFs.\nUsage: " << argv0 << " <reference> <query> [--stat <statfile>] [--dump]" << endl;
-    exit(EXIT_FAILURE);
-}
-
 double calc_r2_hard(size_t n, size_t sumx, size_t sumx2, size_t sumy, size_t sumy2, size_t sumxy) {
     size_t r_num = n * sumxy - sumx * sumy;
     size_t r2_denom_ref = n * sumx2 - sumx * sumx;
@@ -132,30 +128,12 @@ double calc_r2_soft(size_t n, size_t sumx, size_t sumx2, double sumy, double sum
 
 int main(int argc, char *argv[]) {
 
-    if (argc < 3 || argc > 6) {
-        printUsageAndDie(argv[0]);
-    }
+    Args args = Args::parseArgs(argc, argv);
 
-    char* reffile = argv[1];
-    char* queryfile = argv[2];
-    char* statfile = NULL;
-    bool dump = false;
-
-    if (argc == 5 && strcmp(argv[3], "--stat") == 0 && strcmp(argv[4], "--dump") != 0) // only --stat option
-        statfile = argv[4];
-    else if (argc == 4 && strcmp(argv[3], "--dump") == 0) // only ---dump option
-        dump = true;
-    else if (argc == 6) { // --dump and --stat option
-        if (strcmp(argv[3], "--dump") == 0 && strcmp(argv[4], "--stat") == 0) {
-            dump = true;
-            statfile = argv[5];
-        } else if (strcmp(argv[3], "--stat") == 0 && strcmp(argv[5], "--dump") == 0) {
-            dump = true;
-            statfile = argv[4];
-        } else
-            printUsageAndDie(argv[0]);
-    } else if (argc > 3)
-        printUsageAndDie(argv[0]);
+    const string& reffile = args.vcfRef;
+    const string& queryfile = args.vcfQuery;
+    const char* statfile = args.statfile.empty() ? NULL : args.statfile.c_str();
+    bool dump = args.dump;
 
     if (statfile)
         cout << "Statfile: " << statfile << endl;
@@ -173,11 +151,11 @@ int main(int argc, char *argv[]) {
     bcf_sr_set_opt(sr, BCF_SR_PAIR_LOGIC, BCF_SR_PAIR_BOTH_REF);
     bcf_sr_set_opt(sr, BCF_SR_REQUIRE_IDX);
 
-    if (!bcf_sr_add_reader(sr, reffile)) {
+    if (!bcf_sr_add_reader(sr, reffile.c_str())) {
         cerr << "ERROR: Could not open reference for reading: " << bcf_sr_strerror(sr->errnum) << endl;
         exit(EXIT_FAILURE);
     }
-    if (!bcf_sr_add_reader(sr, queryfile)) {
+    if (!bcf_sr_add_reader(sr, queryfile.c_str())) {
         cerr << "ERROR: Could not open query for reading: " << bcf_sr_strerror(sr->errnum) << endl;
         exit(EXIT_FAILURE);
     }

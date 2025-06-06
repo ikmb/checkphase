@@ -13,8 +13,33 @@ set (CMAKE_CXX_STANDARD_REQUIRED 17)
 #############################################################################
 set(cpp_sources
     checkphase.cpp
+    version.cpp
+    Args.cpp
 )
 
+#############################################################################
+# Set up Git version extraction
+#############################################################################
+execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(
+  COMMAND git log -1 --format=%h
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_HASH
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/version.h.template
+    ${CMAKE_BINARY_DIR}/generated/version.h
+    )
+
+include_directories("${CMAKE_BINARY_DIR}/generated")
 
 #############################################################################
 # Configure libraries
@@ -37,7 +62,15 @@ find_package(HTSlib REQUIRED)
 include_directories(${HTSlib_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${HTSlib_LIBRARIES})
 
-#target_link_libraries(${PROJECT_NAME} rt)
+# Boost
+find_package(Boost 1.65.1 REQUIRED
+    COMPONENTS
+    filesystem
+    program_options
+)
+include_directories(${Boost_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
+
 target_link_libraries(${PROJECT_NAME} curl)
 
 # additional CXX options
