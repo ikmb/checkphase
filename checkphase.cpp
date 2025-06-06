@@ -414,10 +414,9 @@ int main(int argc, char *argv[]) {
         size_t ntgt_gt = bcf_get_genotypes(q_hdr, tgt, &tgt_gt, &mtgt_gt); // calls bcf_unpack() within
 
         // imputation R2
-        // you need to manually alloc the memory for the return value on the heap,
-        // as HTSlib may re-allocate the memory (e.g. if the AF tag has more than one entry (multi-allelics))
         float maf = -1.0; // default if no MAF is present
-        if (bcf_get_info_float(q_hdr, tgt, "RefPanelAF", (void*)&af_ptr, &af_size) > 0) { // successfully read RefPanelAF tag
+        if (bcf_get_info_float(q_hdr, tgt, "RefPanelAF", (void*)&af_ptr, &af_size) >= 0                      // successfully read RefPanelAF tag from query
+            || (useshared && bcf_get_info_float(s_hdr, shd, "RefPanelAF", (void*)&af_ptr, &af_size) >= 0)) { // or successfully read RefPanelAF tag from shared file
             if (*af_ptr <= 0.5)
                 maf = *af_ptr; // if there's more than one RefPanelAF entry, take the first.
             else
@@ -427,10 +426,10 @@ int main(int argc, char *argv[]) {
         // genotyped or not?
         bool typed = false;
         if (bcf_get_info_flag(q_hdr, tgt, "TYPED", (void*)&typed_ptr, &typed_size) > 0) { // successfully read TYPED tag and thus, it was set
-            if (!useshared || bcf_get_info_flag(s_hdr, shd, "TYPED", (void*)&typed_ptr, &typed_size) > 0) { // also successfully read TYPED tag from shared variants file if required
+//            if (!useshared || bcf_get_info_flag(s_hdr, shd, "TYPED", (void*)&typed_ptr, &typed_size) > 0) { // also successfully read TYPED tag from shared variants file if required
                 typed = true;
                 havetyped = true;
-            }
+//            }
         }
 
         // get dosages, if present
@@ -1238,16 +1237,17 @@ int main(int argc, char *argv[]) {
         cout << "    Minimum gt error rate (soft):                    " << mingterrrate << endl;
         cout << "    Maximum gt error rate (soft):                    " << maxgterrrate << endl;
         cout << "    Average gt error rate (soft):                    " << avgterrrate << endl;
-        cout << "    Average gt error rate (MAF>=0.1)(soft):          " << avgterrrate_maf01 << endl;
-        cout << "    Average gt error rate (MAF>=0.01)(soft):         " << avgterrrate_maf001 << endl;
-        cout << "    Average gt error rate (MAF>=0.001)(soft):        " << avgterrrate_maf0001 << endl;
-        cout << "    Average gt error rate (MAF>=0.0001)(soft):       " << avgterrrate_maf00001 << endl;
+        cout << "    Average gt error rate (MAF>=0.1) (soft):         " << avgterrrate_maf01 << endl;
+        cout << "    Average gt error rate (MAF>=0.01) (soft):        " << avgterrrate_maf001 << endl;
+        cout << "    Average gt error rate (MAF>=0.001) (soft):       " << avgterrrate_maf0001 << endl;
+        cout << "    Average gt error rate (MAF>=0.0001) (soft):      " << avgterrrate_maf00001 << endl;
         cout << "    Standard GER deviation (soft):                   " << gerdev << endl;
         cout << "    correlation r2 (complete) (soft):                " << r2 << endl;
         cout << "    correlation r2 (complete, MAF>=0.1) (soft):      " << r2_maf01 << endl;
         cout << "    correlation r2 (complete, MAF>=0.01) (soft):     " << r2_maf001 << endl;
         cout << "    correlation r2 (complete, MAF>=0.001) (soft):    " << r2_maf0001 << endl;
-        cout << "    correlation r2 (complete, MAF>=0.0001) (soft):   " << r2_maf00001 << endl;        cout << "    correlation r2 (sample av.) (soft):              " << r2_sav << endl;
+        cout << "    correlation r2 (complete, MAF>=0.0001) (soft):   " << r2_maf00001 << endl;
+        cout << "    correlation r2 (sample av.) (soft):              " << r2_sav << endl;
         cout << "    correlation r2 (sample av., MAF>=0.1) (soft):    " << r2_sav_maf01 << endl;
         cout << "    correlation r2 (sample av., MAF>=0.01) (soft):   " << r2_sav_maf001 << endl;
         cout << "    correlation r2 (sample av., MAF>=0.001) (soft):  " << r2_sav_maf0001 << endl;
