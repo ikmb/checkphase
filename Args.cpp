@@ -139,7 +139,7 @@ Args::Args(int argc, char *argv[]) :
     ("version,v", "Prints version information and exits.")
     ("query,q", value<string>(&vcfQuery), "Indexed compressed VCF/BCF file for query genotypes that should be checked against a reference.")
     ("ref,r", value<string>(&vcfRef), "Indexed compressed VCF/BCF file for the reference that the query is checked against. If RefPanelAF tag exists, MAF categories are enabled.")
-//    ("shared,s", value<string>(&vcfShared), "Tabix-indexed compressed VCF/BCF file containing variants that should exclusively be taken for the comparison. Does not need to contain genotypes (are ignored anyway). If RefPanelAF tag exists, MAF categories are enabled. (optional)")
+    ("shared,s", value<string>(&vcfShared), "Tabix-indexed compressed VCF/BCF file containing variants that should exclusively be taken for the comparison. Does not need to contain genotypes (are ignored anyway). If RefPanelAF tag exists, MAF categories are enabled. (optional)")
     ("stat", value<string>(&statfile), "File for status output. (optional)")
     ;
 
@@ -177,10 +177,10 @@ void Args::parseVars() {
         exit(EXIT_FAILURE);
     }
 
-//    if (!vcfShared.empty() && (!vcfShared.compare(vcfRef) || !vcfShared.compare(vcfQuery))) {
-//        cerr << "ERROR: Shared variants file cannot be equal to query or reference." << endl;
-//        exit(EXIT_FAILURE);
-//    }
+    if (!vcfShared.empty() && (!vcfShared.compare(vcfRef) || !vcfShared.compare(vcfQuery))) {
+        cerr << "ERROR: Shared variants file cannot be equal to query or reference." << endl;
+        exit(EXIT_FAILURE);
+    }
 
     if (!statfile.empty()) {
         bool ok = true;

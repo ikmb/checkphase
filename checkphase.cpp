@@ -132,6 +132,7 @@ int main(int argc, char *argv[]) {
 
     const string& reffile = args.vcfRef;
     const string& queryfile = args.vcfQuery;
+    const string& sharedfile = args.vcfShared;
     const char* statfile = args.statfile.empty() ? NULL : args.statfile.c_str();
     bool dump = args.dump;
 
@@ -145,6 +146,8 @@ int main(int argc, char *argv[]) {
 
     size_t Mrefidx = getNumVariantsFromIndex(reffile);
     size_t Mqidx = getNumVariantsFromIndex(queryfile);
+    size_t Msharedidx = sharedfile.empty() ? 0 : getNumVariantsFromIndex(sharedfile);
+    bool useshared = Msharedidx ? true : false;
 
     bcf_srs_t *sr = bcf_sr_init();
 
@@ -158,6 +161,12 @@ int main(int argc, char *argv[]) {
     if (!bcf_sr_add_reader(sr, queryfile.c_str())) {
         cerr << "ERROR: Could not open query for reading: " << bcf_sr_strerror(sr->errnum) << endl;
         exit(EXIT_FAILURE);
+    }
+    if (useshared) {
+        if (!bcf_sr_add_reader(sr, sharedfile.c_str())) {
+            cerr << "ERROR: Could not open shared file for reading: " << bcf_sr_strerror(sr->errnum) << endl;
+            exit(EXIT_FAILURE);
+        }
     }
 
     bcf_hdr_t *ref_hdr = bcf_sr_get_header(sr, 0);
@@ -183,6 +192,8 @@ int main(int argc, char *argv[]) {
     cout << "  Reference samples:               Nref = " << Nref << endl;
     cout << "  Query variants (from index):   Mquery = " << Mqidx << endl;
     cout << "  Query samples:                 Nquery = " << Nquery << endl;
+    if (useshared)
+        cout << "  Shared file variants (from index): Ms = " << Msharedidx << endl;
     cout << endl;
 
     // extract shared samples (shared samples have to be in the same order! all query samples have to be in the reference!)
@@ -207,6 +218,7 @@ int main(int argc, char *argv[]) {
 
     size_t Mref = 0; // reference variants
     size_t Mq = 0;   // query variants
+    size_t Ms = 0;   // variants from shared file
     size_t Mshared = 0; // shared variants
     size_t Mmaf01 = 0; // shared variants with RefPanelMAF >= 0.1
     size_t Mmaf001 = 0; // shared variants with RefPanelMAF >= 0.01
@@ -328,15 +340,20 @@ int main(int argc, char *argv[]) {
     // we sum up dosages in bins to compensate for numeric instability
     size_t currbin = 0;
 
-    while (bcf_sr_next_line(sr)) { // read data SNP-wise in positional sorted order from target and reference
+    while (bcf_sr_next_line(sr)) { // read data SNP-wise in positional sorted order from query, reference and optional shared file
 
         bcf1_t *ref = bcf_sr_get_line(sr, 0); // read one line of reference, if available at current position (otherwise NULL)
-        bcf1_t *tgt = bcf_sr_get_line(sr, 1); // read one line of target, if available at current position (otherwise NULL)
+        bcf1_t *tgt = bcf_sr_get_line(sr, 1); // read one line of query, if available at current position (otherwise NULL)
+        bcf1_t *shd = NULL;
+        if (useshared)
+            shd = bcf_sr_get_line(sr, 2); // read one line of shared file, if available at current position (otherwise NULL)
 
         if (ref)
             Mref++;
         if (tgt)
             Mq++;
+        if (shd)
+            Ms++;
 
         if ((ref && Mref % linesperpercentref == 0) || (tgt && Mq % linesperpercentq == 0)) {
             if (ref && Mref % linesperpercentref == 0) {
@@ -347,7 +364,7 @@ int main(int argc, char *argv[]) {
             updateStatus(statfile, Mref/(float)Mrefidx, Mq/(float)Mqidx);
         }
 
-        if (!ref || !tgt) { // query or reference only variant
+        if (!ref || !tgt || (useshared && !shd)) { // query or reference only variant, or not in shared file
             continue;
         }
 

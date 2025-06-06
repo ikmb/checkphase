@@ -83,7 +83,7 @@ public:
 
     string vcfRef;
     string vcfQuery;
-//    string vcfShared;
+    string vcfShared;
     string statfile;
 
     bool debug = false;
