@@ -171,6 +171,7 @@ int main(int argc, char *argv[]) {
 
     bcf_hdr_t *ref_hdr = bcf_sr_get_header(sr, 0);
     bcf_hdr_t *q_hdr = bcf_sr_get_header(sr, 1);
+    bcf_hdr_t *s_hdr = bcf_sr_get_header(sr, 2);
 
     size_t Nref = bcf_hdr_nsamples(ref_hdr);
     size_t Nquery = bcf_hdr_nsamples(q_hdr);
@@ -426,8 +427,10 @@ int main(int argc, char *argv[]) {
         // genotyped or not?
         bool typed = false;
         if (bcf_get_info_flag(q_hdr, tgt, "TYPED", (void*)&typed_ptr, &typed_size) > 0) { // successfully read TYPED tag and thus, it was set
-            typed = true;
-            havetyped = true;
+            if (!useshared || bcf_get_info_flag(s_hdr, shd, "TYPED", (void*)&typed_ptr, &typed_size) > 0) { // also successfully read TYPED tag from shared variants file if required
+                typed = true;
+                havetyped = true;
+            }
         }
 
         // get dosages, if present
@@ -457,6 +460,18 @@ int main(int argc, char *argv[]) {
         } else { // different alleles -> next variant
             MAlleleDiff++;
             continue;
+        }
+
+        // check alleles also with shared vars file
+        if (useshared) {
+            if (strcmp(tgt->d.allele[0], shd->d.allele[0]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[1]) == 0) { // all good
+            } else if (strcmp(tgt->d.allele[0], shd->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[0]) == 0) { // switched alleles
+            } else if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[1]) == 0) { // strand flip + switched alleles
+            } else if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[0]) == 0) { // strand flip + switched alleles
+            } else { // different alleles -> next variant
+                MAlleleDiff++;
+                continue;
+            }
         }
 
         // check number of called genotypes
