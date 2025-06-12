@@ -3,132 +3,207 @@
 #
 #  Copyright (C) 2018-2023 by Lars Wienbrandt,
 #  Institute of Clinical Molecular Biology, Kiel University
-#  
+#
 #  This file is part of Checkphase.
-#  
+#
 #  Checkphase is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  Checkphase is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with Checkphase. If not, see <https://www.gnu.org/licenses/>.
 #
 
-# extracts information from checkphase summary reports
+# extracts information from checkphase reports to tab-separated output (tsv))
 if [[ $# == 0 ]]; then
-  echo "Usage: checkphase_extract <list of checkphase summary files>"
+  echo "Usage: checkphase_extract <list of checkphase ouput files>"
+  echo "Reads checkphase information from provided files and generates a .tsv with the most important information."
   exit 1
 fi
 
-awk 'BEGIN {
-QSAMPLES="Query samples:"
-QHAPS="Query haploid samples:"
+# create a '\t' separated list from the command line arguments
+sep='\\t'
+FILES=$(printf "%s$sep" "$@")
+FILES="${FILES%$sep}" # remove trailing separator
 
-REFVARS="Reference variants:"
-QVARS="Query variants:"
-COMMVARS="Common variants:"
-CHECKVARS="Checked variants:"
+gawk 'BEGIN {
+ files="\t'$FILES'"
+ Nquery="Query samples"
+ Mcheck="Checked variants"
+ Mcheck_maf01="Checked MAF>=0.1"
+ Mcheck_maf001="Checked MAF>=0.01"
+ Mcheck_maf0001="Checked MAF>=0.001"
+ Mcheck_maf00001="Checked MAF>=0.0001"
+ Mtyped="Checked typed variants"
 
-REFALTSWAPS="Ref/Alt swaps:"
-STRANDFLIPS="Strand flips:"
-REFALTSTRAND="Ref/Alt + Strand flip:"
+ Totgterr="Total genotype errors"
+ Totgterr_maf01="Total genotype errors (MAF>=0.1)"
+ Totgterr_maf001="Total genotype errors (MAF>=0.01)"
+ Totgterr_maf0001="Total genotype errors (MAF>=0.001)"
+ Totgterr_maf00001="Total genotype errors (MAF>=0.0001)"
+ Avgterr="Average gt error rate"
+ Avgterr_maf01="Average gt error rate (MAF>=0.1)"
+ Avgterr_maf001="Average gt error rate (MAF>=0.01)"
+ Avgterr_maf0001="Average gt error rate (MAF>=0.001)"
+ Avgterr_maf00001="Average gt error rate (MAF>=0.0001)"
+ Corr2_compl="correlation r2 (complete)"
+ Corr2_compl_maf01="correlation r2 (complete, MAF>=0.1)"
+ Corr2_compl_maf001="correlation r2 (complete, MAF>=0.01)"
+ Corr2_compl_maf0001="correlation r2 (complete, MAF>=0.001)"
+ Corr2_compl_maf00001="correlation r2 (complete, MAF>=0.0001)"
+ Corr2_varav="correlation r2 (var av.)"
+ Corr2_varav_maf01="correlation r2 (var av., MAF>=0.1)"
+ Corr2_varav_maf001="correlation r2 (var av., MAF>=0.01)"
+ Corr2_varav_maf0001="correlation r2 (var av., MAF>=0.001)"
+ Corr2_varav_maf00001="correlation r2 (var av., MAF>=0.0001)"
 
-GTERRTOTAL="Total genotype errors:"
-GTERRMIN="Minimum genotype errors:"
-GTERRMAX="Maximum genotype errors:"
-GTERRAV="Average gt err per sample:"
-GTERRRATEMIN="Minimum gt error rate:"
-GTERRRATEMAX="Maximum gt error rate:"
-GTERRRATEAV="Average gt error rate:"
-GERDEV="Standard GER deviation:"
-GERVAR="GER variance:"
+ Totgterr_soft="Total genotype errors (soft)"
+ Totgterr_soft_maf01="Total genotype errors (MAF>=0.1) (soft)"
+ Totgterr_soft_maf001="Total genotype errors (MAF>=0.01) (soft)"
+ Totgterr_soft_maf0001="Total genotype errors (MAF>=0.001) (soft)"
+ Totgterr_soft_maf00001="Total genotype errors (MAF>=0.0001) (soft)"
+ Avgterr_soft="Average gt error rate (soft)"
+ Avgterr_soft_maf01="Average gt error rate (MAF>=0.1) (soft)"
+ Avgterr_soft_maf001="Average gt error rate (MAF>=0.01) (soft)"
+ Avgterr_soft_maf0001="Average gt error rate (MAF>=0.001) (soft)"
+ Avgterr_soft_maf00001="Average gt error rate (MAF>=0.0001) (soft)"
+ Corr2_compl_soft="correlation r2 (complete) (soft)"
+ Corr2_compl_soft_maf01="correlation r2 (complete, MAF>=0.1) (soft)"
+ Corr2_compl_soft_maf001="correlation r2 (complete, MAF>=0.01) (soft)"
+ Corr2_compl_soft_maf0001="correlation r2 (complete, MAF>=0.001) (soft)"
+ Corr2_compl_soft_maf00001="correlation r2 (complete, MAF>=0.0001) (soft)"
+ Corr2_varav_soft="correlation r2 (var av.) (soft)"
+ Corr2_varav_soft_maf01="correlation r2 (var av., MAF>=0.1) (soft)"
+ Corr2_varav_soft_maf001="correlation r2 (var av., MAF>=0.01) (soft)"
+ Corr2_varav_soft_maf0001="correlation r2 (var av., MAF>=0.001) (soft)"
+ Corr2_varav_soft_maf00001="correlation r2 (var av., MAF>=0.0001) (soft)"
 
-SWERRTOTAL="Total switch errors:"
-SWERRMIN="Minimum switch errors:"
-SWERRMAX="Maximum switch errors:"
-SWERRAV="Average sw err per sample:"
-SWERRRATEMIN="Minimum sw error rate:"
-SWERRRATEMAX="Maximum sw error rate:"
-SWERRRATEAV="Average sw error rate:"
-SERDEV="Standard SER deviation:"
-SERVAR="SER variance:"
-SWERRFREETGT="Switch error free targets:"
-SWERRMATPAT="Mat/Pat switches:"
+ Totswerr="Total switch errors"
+ Avswerr="Average sw error rate"
+ Totswerr_typed="Total switch errors (typed)"
+ Avswerr_typed="Average sw error rate (typed)"
 }
 
-/Query samples:/{QSAMPLES=(QSAMPLES "," $5)}
-/Haploid query samples:/{QHAPS=(QHAPS "," $4)}
+# number of query samples and checked variants
+/Query samples:/{Nquery=(Nquery "\t" $5); next}
+/Checked variants:/{Mcheck=(Mcheck "\t" $3); next}
+/Checked MAF>=0.1:/{Mcheck_maf01=(Mcheck_maf01 "\t" $3); next}
+/Checked MAF>=0.01:/{Mcheck_maf001=(Mcheck_maf001 "\t" $3); next}
+/Checked MAF>=0.001:/{Mcheck_maf0001=(Mcheck_maf0001 "\t" $3); next}
+/Checked MAF>=0.0001:/{Mcheck_maf00001=(Mcheck_maf00001 "\t" $3); next}
+/Checked typed variants:/{Mtyped=(Mtyped "\t" $4); next}
 
-/Reference variants:/{REFVARS=(REFVARS "," $3)}
-/Query variants:/{QVARS=(QVARS "," $3)}
-/Common variants:/{COMMVARS=(COMMVARS "," $3)}
-/Checked variants:/{CHECKVARS=(CHECKVARS "," $3)}
+# errors
+/Total genotype errors:/{Totgterr=(Totgterr "\t" $4); next}
+/Total genotype errors \(MAF>=0.1\):/{Totgterr_maf01=(Totgterr_maf01 "\t" $5); next}
+/Total genotype errors \(MAF>=0.01\):/{Totgterr_maf001=(Totgterr_maf001 "\t" $5); next}
+/Total genotype errors \(MAF>=0.001\):/{Totgterr_maf0001=(Totgterr_maf0001 "\t" $5); next}
+/Total genotype errors \(MAF>=0.0001\):/{Totgterr_maf00001=(Totgterr_maf00001 "\t" $5); next}
+/Total genotype errors \(soft\):/{Totgterr_soft=(Totgterr_soft "\t" $5); next}
+/Total genotype errors \(MAF>=0.1\) \(soft\):/{Totgterr_soft_maf01=(Totgterr_soft_maf01 "\t" $6); next}
+/Total genotype errors \(MAF>=0.01\) \(soft\):/{Totgterr_soft_maf001=(Totgterr_soft_maf001 "\t" $6); next}
+/Total genotype errors \(MAF>=0.001\) \(soft\):/{Totgterr_soft_maf0001=(Totgterr_soft_maf0001 "\t" $6); next}
+/Total genotype errors \(MAF>=0.0001\) \(soft\):/{Totgterr_soft_maf00001=(Totgterr_soft_maf00001 "\t" $6); next}
+/Total switch errors:/{Totswerr=(Totswerr "\t" $4); next}
+/Total switch errors \(typed\):/{Totswerr_typed=(Totswerr_typed "\t" $5); next}
 
-/Ref\/Alt swaps:/{REFALTSWAPS=(REFALTSWAPS "," $3)}
-/Strand flips:/{STRANDFLIPS=(STRANDFLIPS "," $3)}
-/Ref\/Alt \+ Strand flip:/{REFALTSTRAND=(REFALTSTRAND "," $5)}
+# error rates
+/Average gt error rate:/{Avgterr=(Avgterr "\t" $5); next}
+/Average gt error rate \(MAF>=0.1\):/{Avgterr_maf01=(Avgterr_maf01 "\t" $6); next}
+/Average gt error rate \(MAF>=0.01\):/{Avgterr_maf001=(Avgterr_maf001 "\t" $6); next}
+/Average gt error rate \(MAF>=0.001\):/{Avgterr_maf0001=(Avgterr_maf0001 "\t" $6); next}
+/Average gt error rate \(MAF>=0.0001\):/{Avgterr_maf00001=(Avgterr_maf00001 "\t" $6); next}
+/Average gt error rate \(soft\):/{Avgterr_soft=(Avgterr_soft "\t" $6); next}
+/Average gt error rate \(MAF>=0.1\) \(soft\):/{Avgterr_soft_maf01=(Avgterr_soft_maf01 "\t" $7); next}
+/Average gt error rate \(MAF>=0.01\) \(soft\):/{Avgterr_soft_maf001=(Avgterr_soft_maf001 "\t" $7); next}
+/Average gt error rate \(MAF>=0.001\) \(soft\):/{Avgterr_soft_maf0001=(Avgterr_soft_maf0001 "\t" $7); next}
+/Average gt error rate \(MAF>=0.0001\) \(soft\):/{Avgterr_soft_maf00001=(Avgterr_soft_maf00001 "\t" $7); next}
+/Average sw error rate:/{Avswerr=(Avswerr "\t" $5); next}
+/Average sw error rate \(typed\):/{Avswerr_typed=(Avswerr_typed "\t" $6); next}
 
-/Total genotype errors:/{GTERRTOTAL=(GTERRTOTAL "," $4)}
-/Minimum genotype errors:/{GTERRMIN=(GTERRMIN "," $4)}
-/Maximum genotype errors:/{GTERRMAX=(GTERRMAX "," $4)}
-/Average gt err per sample:/{GTERRAV=(GTERRAV "," $6)}
-/Minimum gt error rate:/{GTERRRATEMIN=(GTERRRATEMIN "," $5)}
-/Maximum gt error rate:/{GTERRRATEMAX=(GTERRRATEMAX "," $5)}
-/Average gt error rate:/{GTERRRATEAV=(GTERRRATEAV "," $5)}
-/Standard GER deviation:/{GERDEV=(GERDEV "," $4)}
-/GER variance:/{GERVAR=(GERVAR "," $3)}
+# r2
+/correlation r2 \(complete\):/{Corr2_compl=(Corr2_compl "\t" $4); next}
+/correlation r2 \(complete, MAF>=0.1\):/{Corr2_compl_maf01=(Corr2_compl_maf01 "\t" $5); next}
+/correlation r2 \(complete, MAF>=0.01\):/{Corr2_compl_maf001=(Corr2_compl_maf001 "\t" $5); next}
+/correlation r2 \(complete, MAF>=0.001\):/{Corr2_compl_maf0001=(Corr2_compl_maf0001 "\t" $5); next}
+/correlation r2 \(complete, MAF>=0.0001\):/{Corr2_compl_maf00001=(Corr2_compl_maf00001 "\t" $5); next}
+/correlation r2 \(var av.\):/{Corr2_varav=(Corr2_varav "\t" $5); next}
+/correlation r2 \(var av., MAF>=0.1\):/{Corr2_varav_maf01=(Corr2_varav_maf01 "\t" $6); next}
+/correlation r2 \(var av., MAF>=0.01\):/{Corr2_varav_maf001=(Corr2_varav_maf001 "\t" $6); next}
+/correlation r2 \(var av., MAF>=0.001\):/{Corr2_varav_maf0001=(Corr2_varav_maf0001 "\t" $6); next}
+/correlation r2 \(var av., MAF>=0.0001\):/{Corr2_varav_maf00001=(Corr2_varav_maf00001 "\t" $6); next}
+/correlation r2 \(complete\) \(soft\):/{Corr2_compl_soft=(Corr2_compl_soft "\t" $5); next}
+/correlation r2 \(complete, MAF>=0.1\) \(soft\):/{Corr2_compl_soft_maf01=(Corr2_compl_soft_maf01 "\t" $6); next}
+/correlation r2 \(complete, MAF>=0.01\) \(soft\):/{Corr2_compl_soft_maf001=(Corr2_compl_soft_maf001 "\t" $6); next}
+/correlation r2 \(complete, MAF>=0.001\) \(soft\):/{Corr2_compl_soft_maf0001=(Corr2_compl_soft_maf0001 "\t" $6); next}
+/correlation r2 \(complete, MAF>=0.0001\) \(soft\):/{Corr2_compl_soft_maf00001=(Corr2_compl_soft_maf00001 "\t" $6); next}
+/correlation r2 \(var av.\) \(soft\):/{Corr2_varav_soft=(Corr2_varav_soft "\t" $6); next}
+/correlation r2 \(var av., MAF>=0.1\) \(soft\):/{Corr2_varav_soft_maf01=(Corr2_varav_soft_maf01 "\t" $7); next}
+/correlation r2 \(var av., MAF>=0.01\) \(soft\):/{Corr2_varav_soft_maf001=(Corr2_varav_soft_maf001 "\t" $7); next}
+/correlation r2 \(var av., MAF>=0.001\) \(soft\):/{Corr2_varav_soft_maf0001=(Corr2_varav_soft_maf0001 "\t" $7); next}
+/correlation r2 \(var av., MAF>=0.0001\) \(soft\):/{Corr2_varav_soft_maf00001=(Corr2_varav_soft_maf00001 "\t" $7); next}
 
-/Total switch errors:/{SWERRTOTAL=(SWERRTOTAL "," $4)}
-/Minimum switch errors:/{SWERRMIN=(SWERRMIN "," $4)}
-/Maximum switch errors:/{SWERRMAX=(SWERRMAX "," $4)}
-/Average sw err per sample:/{SWERRAV=(SWERRAV "," $6)}
-/Minimum sw error rate:/{SWERRRATEMIN=(SWERRRATEMIN "," $5)}
-/Maximum sw error rate:/{SWERRRATEMAX=(SWERRRATEMAX "," $5)}
-/Average sw error rate:/{SWERRRATEAV=(SWERRRATEAV "," $5)}
-/Standard SER deviation:/{SERDEV=(SERDEV "," $4)}
-/SER variance:/{SERVAR=(SERVAR "," $3)}
-/Switch error free targets:/{SWERRFREETGT=(SWERRFREETGT "," $5)}
-/Mat\/Pat switches:/{SWERRMATPAT=(SWERRMATPAT "," $3)}
-
+# print TSV output
 END {
-print QSAMPLES
-print QHAPS
+print files
+print Nquery
+print Mcheck
+print Mcheck_maf01
+print Mcheck_maf001
+print Mcheck_maf0001
+print Mcheck_maf00001
+print Mtyped
 
-print REFVARS
-print QVARS
-print COMMVARS
-print CHECKVARS
+print Totgterr
+print Totgterr_maf01
+print Totgterr_maf001
+print Totgterr_maf0001
+print Totgterr_maf00001
+print Avgterr
+print Avgterr_maf01
+print Avgterr_maf001
+print Avgterr_maf0001
+print Avgterr_maf00001
+print Corr2_compl
+print Corr2_compl_maf01
+print Corr2_compl_maf001
+print Corr2_compl_maf0001
+print Corr2_compl_maf00001
+print Corr2_varav
+print Corr2_varav_maf01
+print Corr2_varav_maf001
+print Corr2_varav_maf0001
+print Corr2_varav_maf00001
 
-print GTERRTOTAL
-print GTERRMIN
-print GTERRMAX
-print GTERRAV
-print GTERRRATEMIN
-print GTERRRATEMAX
-print GTERRRATEAV
-print GERDEV
-print GERVAR
+print Totgterr_soft
+print Totgterr_soft_maf01
+print Totgterr_soft_maf001
+print Totgterr_soft_maf0001
+print Totgterr_soft_maf00001
+print Avgterr_soft
+print Avgterr_soft_maf01
+print Avgterr_soft_maf001
+print Avgterr_soft_maf0001
+print Avgterr_soft_maf00001
+print Corr2_compl_soft
+print Corr2_compl_soft_maf01
+print Corr2_compl_soft_maf001
+print Corr2_compl_soft_maf0001
+print Corr2_compl_soft_maf00001
+print Corr2_varav_soft
+print Corr2_varav_soft_maf01
+print Corr2_varav_soft_maf001
+print Corr2_varav_soft_maf0001
+print Corr2_varav_soft_maf00001
 
-print SWERRTOTAL
-print SWERRMIN
-print SWERRMAX
-print SWERRAV
-print SWERRRATEMIN
-print SWERRRATEMAX
-print SWERRRATEAV
-print SERDEV
-print SERVAR
-print SWERRFREETGT
-print SWERRMATPAT
-
-print REFALTSWAPS
-print STRANDFLIPS
-print REFALTSTRAND
-
+print Totswerr
+print Avswerr
+print Totswerr_typed
+print Avswerr_typed
 }' $@

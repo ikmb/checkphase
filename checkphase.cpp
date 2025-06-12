@@ -1,4 +1,4 @@
-/*SS
+/*
  *    Copyright (C) 2018-2025 by Lars Wienbrandt,
  *    Institute of Clinical Molecular Biology, Kiel University
  *

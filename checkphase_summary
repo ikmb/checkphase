@@ -3,89 +3,187 @@
 #
 #  Copyright (C) 2018-2023 by Lars Wienbrandt,
 #  Institute of Clinical Molecular Biology, Kiel University
-#  
+#
 #  This file is part of Checkphase.
-#  
+#
 #  Checkphase is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  Checkphase is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with Checkphase. If not, see <https://www.gnu.org/licenses/>.
 #
 
-# summarizes information from checkphase sample-wise outputs
+# summarizes some information from checkphase chromosome-wise outputs
 if [[ $# == 0 ]]; then
-  echo "Usage: checkphase_summary <list of checkphase sample-wise output files>"
+  echo "Usage: checkphase_summary <list of checkphase output files>"
+  echo "Reads checkphase information from provided files, combines it and provides a summary."
   exit 1
 fi
 
-awk 'BEGIN {
- Mcheck=0
- Totswerr=0
- Totgterr=0
- Totgterrsoft=0.0
+gawk 'BEGIN {
  Nquery=0
+ Mcheck=0
+ Mcheck_maf01=0
+ Mcheck_maf001=0
+ Mcheck_maf0001=0
+ Mcheck_maf00001=0
+ Mchecklocal=0
+ Mchecklocal_maf01=0
+ Mchecklocal_maf001=0
+ Mchecklocal_maf0001=0
+ Mchecklocal_maf00001=0
+ Mtyped=0
+ Totgterr=0
+ Totgterr_maf01=0
+ Totgterr_maf001=0
+ Totgterr_maf0001=0
+ Totgterr_maf00001=0
+ Totgterrsoft=0.0
+ Totgterrsoft_maf01=0.0
+ Totgterrsoft_maf001=0.0
+ Totgterrsoft_maf0001=0.0
+ Totgterrsoft_maf00001=0.0
+ Totswerr=0
+ Totswerrtyped=0
+ r2sum_compl=0.0
+ r2sum_compl_maf01=0.0
+ r2sum_compl_maf001=0.0
+ r2sum_compl_maf0001=0.0
+ r2sum_compl_maf00001=0.0
+ r2sum_varav=0.0
+ r2sum_varav_maf01=0.0
+ r2sum_varav_maf001=0.0
+ r2sum_varav_maf0001=0.0
+ r2sum_varav_maf00001=0.0
+ r2sum_compl_soft=0.0
+ r2sum_compl_soft_maf01=0.0
+ r2sum_compl_soft_maf001=0.0
+ r2sum_compl_soft_maf0001=0.0
+ r2sum_compl_soft_maf00001=0.0
+ r2sum_varav_soft=0.0
+ r2sum_varav_soft_maf01=0.0
+ r2sum_varav_soft_maf001=0.0
+ r2sum_varav_soft_maf0001=0.0
+ r2sum_varav_soft_maf00001=0.0
 }
+
+# check number of query samples
+/Query samples:/{if (Nquery == 0) {Nquery = $5} else { if (Nquery != $5) { print "WARNING! Query samples do not match! " Nquery " vs. " $5 }}; next}
+
 # add checked variants from this file
-/Checked variants:/{Mcheck += $3; next}
-# ignore header
-/Idx/{next}
-# general
-{
- # number of samples based on indices
- if ($1 >= Nquery) Nquery = $1
- # sum up errors
- Totswerr += $2
- Totgterr += $3
- Totgterrsoft += $4
- # sum up per ID
- swerr[$1] += $2
- gterr[$1] += $3
- gterrsoft[$1] += $4
-}
+/Checked variants:/{Mcheck += $3; Mchecklocal = $3; next}
+/Checked MAF>=0.1:/{Mcheck_maf01 += $3; Mchecklocal_maf01 = $3; next}
+/Checked MAF>=0.01:/{Mcheck_maf001 += $3; Mchecklocal_maf001 = $3; next}
+/Checked MAF>=0.001:/{Mcheck_maf0001 += $3; Mchecklocal_maf0001 = $3; next}
+/Checked MAF>=0.0001:/{Mcheck_maf00001 += $3; Mchecklocal_maf00001 = $3; next}
+/Checked typed variants:/{Mtyped += $4; next}
 
+# add errors
+/Total genotype errors:/{Totgterr += $4; next}
+/Total genotype errors \(MAF>=0.1\):/{Totgterr_maf01 += $5; next}
+/Total genotype errors \(MAF>=0.01\):/{Totgterr_maf001 += $5; next}
+/Total genotype errors \(MAF>=0.001\):/{Totgterr_maf0001 += $5; next}
+/Total genotype errors \(MAF>=0.0001\):/{Totgterr_maf00001 += $5; next}
+/Total genotype errors \(soft\):/{Totgterrsoft += $5; next}
+/Total genotype errors \(MAF>=0.1\) \(soft\):/{Totgterrsoft_maf01 += $6; next}
+/Total genotype errors \(MAF>=0.01\) \(soft\):/{Totgterrsoft_maf001 += $6; next}
+/Total genotype errors \(MAF>=0.001\) \(soft\):/{Totgterrsoft_maf0001 += $6; next}
+/Total genotype errors \(MAF>=0.0001\) \(soft\):/{Totgterrsoft_maf00001 += $6; next}
+/Total switch errors:/{Totswerr += $4; next}
+/Total switch errors \(typed\):/{Totswerrtyped += $5; next}
+
+# sum up r2 (weighted by the number of checked variants in this file)
+/correlation r2 \(complete\):/{r2sum_compl += $4*Mchecklocal; next}
+/correlation r2 \(complete, MAF>=0.1\):/{r2sum_compl_maf01 += $5*Mchecklocal_maf01; next}
+/correlation r2 \(complete, MAF>=0.01\):/{r2sum_compl_maf001 += $5*Mchecklocal_maf001; next}
+/correlation r2 \(complete, MAF>=0.001\):/{r2sum_compl_maf0001 += $5*Mchecklocal_maf0001; next}
+/correlation r2 \(complete, MAF>=0.0001\):/{r2sum_compl_maf00001 += $5*Mchecklocal_maf00001; next}
+/correlation r2 \(var av.\):/{r2sum_varav += $5*Mchecklocal; next}
+/correlation r2 \(var av., MAF>=0.1\):/{r2sum_varav_maf01 += $6*Mchecklocal_maf01; next}
+/correlation r2 \(var av., MAF>=0.01\):/{r2sum_varav_maf001 += $6*Mchecklocal_maf001; next}
+/correlation r2 \(var av., MAF>=0.001\):/{r2sum_varav_maf0001 += $6*Mchecklocal_maf0001; next}
+/correlation r2 \(var av., MAF>=0.0001\):/{r2sum_varav_maf00001 += $6*Mchecklocal_maf00001; next}
+/correlation r2 \(complete\) \(soft\):/{r2sum_compl_soft += $5*Mchecklocal; next}
+/correlation r2 \(complete, MAF>=0.1\) \(soft\):/{r2sum_compl_soft_maf01 += $6*Mchecklocal_maf01; next}
+/correlation r2 \(complete, MAF>=0.01\) \(soft\):/{r2sum_compl_soft_maf001 += $6*Mchecklocal_maf001; next}
+/correlation r2 \(complete, MAF>=0.001\) \(soft\):/{r2sum_compl_soft_maf0001 += $6*Mchecklocal_maf0001; next}
+/correlation r2 \(complete, MAF>=0.0001\) \(soft\):/{r2sum_compl_soft_maf00001 += $6*Mchecklocal_maf00001; next}
+/correlation r2 \(var av.\) \(soft\):/{r2sum_varav_soft += $6*Mchecklocal; next}
+/correlation r2 \(var av., MAF>=0.1\) \(soft\):/{r2sum_varav_soft_maf01 += $7*Mchecklocal_maf01; next}
+/correlation r2 \(var av., MAF>=0.01\) \(soft\):/{r2sum_varav_soft_maf001 += $7*Mchecklocal_maf001; next}
+/correlation r2 \(var av., MAF>=0.001\) \(soft\):/{r2sum_varav_soft_maf0001 += $7*Mchecklocal_maf0001; next}
+/correlation r2 \(var av., MAF>=0.0001\) \(soft\):/{r2sum_varav_soft_maf00001 += $7*Mchecklocal_maf00001; next}
+
+# Summary output
 END {
- Nquery++ # indices are 0-based
-
- # Summary output of:
- # - Number of files
- # - Number of samples
- # - Number of (checked) variants
- # - Total sw errors
- # - Av. sw errors
- # - Av. sw error rate
- # - Total gt errors
- # - Av. gt errors
- # - Av. gt error rate
- print "# Num files:\t" ARGC-1 # first argument is the awk program itself
- print "# Num samples:\t" Nquery
- print "# Num (checked) variants:\t" Mcheck
- print "# Total sw errors:\t" Totswerr
- print "# Av. sw errors:\t" (Totswerr/Nquery)
- print "# Av. sw error rate:\t" (Totswerr/Nquery/Mcheck)
- print "# Total gt errors (hard):\t" Totgterr
- print "# Av. gt errors (hard):\t" (Totgterr/Nquery)
- print "# Av. gt error rate (hard):\t" (Totgterr/Nquery/Mcheck)
- print "# Total gt errors (soft):\t" Totgterrsoft
- print "# Av. gt errors (soft):\t" (Totgterrsoft/Nquery)
- print "# Av. gt error rate (soft):\t" (Totgterrsoft/Nquery/Mcheck)
-
- # Per samples output of:
- # - sw errors
- # - sw error rate
- # - gt errors (hard)
- # - gt error rate (hard)
- # - gt errors (soft)
- # - gt error rate (soft)
- print "Idx\tsw err\tsw err rate\tgt err (hard)\tgt err rate (hard)\tgt err (soft)\tgt err rate (soft)"
- for (idx=0; idx<Nquery; idx++) {
-  print idx "\t" swerr[idx] "\t" swerr[idx]/Mcheck "\t" gterr[idx] "\t" gterr[idx]/Mcheck "\t" gterrsoft[idx] "\t" gterrsoft[idx]/Mcheck
- }
+ print "Num files:\t" ARGC-1 # first argument is the awk program itself
+ print "Query samples:\tNquery = " Nquery
+ print
+ print "Summary:"
+ print "  Checked variants:\t\t" Mcheck
+ print "  Checked MAF>=0.1:\t\t" Mcheck_maf01
+ print "  Checked MAF>=0.01:\t\t" Mcheck_maf001
+ print "  Checked MAF>=0.001:\t\t" Mcheck_maf0001
+ print "  Checked MAF>=0.0001:\t\t" Mcheck_maf00001
+ print "  Checked typed variants:\t" Mtyped
+ print
+ print "  Genotype errors (hard):"
+ print "    Total genotype errors:\t\t\t" Totgterr
+ print "    Total genotype errors (MAF>=0.1):\t\t" Totgterr_maf01
+ print "    Total genotype errors (MAF>=0.01):\t\t" Totgterr_maf001
+ print "    Total genotype errors (MAF>=0.001):\t\t" Totgterr_maf0001
+ print "    Total genotype errors (MAF>=0.0001):\t" Totgterr_maf00001
+ print "    Average gt error rate:\t\t\t" (Totgterr/Nquery/Mcheck)
+ print "    Average gt error rate (MAF>=0.1):\t\t" (Totgterr_maf01/Nquery/Mcheck_maf01)
+ print "    Average gt error rate (MAF>=0.01):\t\t" (Totgterr_maf001/Nquery/Mcheck_maf001)
+ print "    Average gt error rate (MAF>=0.001):\t\t" (Totgterr_maf0001/Nquery/Mcheck_maf0001)
+ print "    Average gt error rate (MAF>=0.0001):\t" (Totgterr_maf00001/Nquery/Mcheck_maf00001)
+ print "    correlation r2 (complete):\t\t\t" (r2sum_compl/Mcheck)
+ print "    correlation r2 (complete, MAF>=0.1):\t" (r2sum_compl_maf01/Mcheck_maf01)
+ print "    correlation r2 (complete, MAF>=0.01):\t" (r2sum_compl_maf001/Mcheck_maf001)
+ print "    correlation r2 (complete, MAF>=0.001):\t" (r2sum_compl_maf0001/Mcheck_maf0001)
+ print "    correlation r2 (complete, MAF>=0.0001):\t" (r2sum_compl_maf00001/Mcheck_maf00001)
+ print "    correlation r2 (var av.):\t\t\t" (r2sum_varav/Mcheck)
+ print "    correlation r2 (var av., MAF>=0.1):\t\t" (r2sum_varav_maf01/Mcheck_maf01)
+ print "    correlation r2 (var av., MAF>=0.01):\t" (r2sum_varav_maf001/Mcheck_maf001)
+ print "    correlation r2 (var av., MAF>=0.001):\t" (r2sum_varav_maf0001/Mcheck_maf0001)
+ print "    correlation r2 (var av., MAF>=0.0001):\t" (r2sum_varav_maf00001/Mcheck_maf00001)
+ print
+ print "  Genotype errors (soft):"
+ print "    Total genotype errors (soft):\t\t\t" Totgterrsoft
+ print "    Total genotype errors (MAF>=0.1) (soft):\t\t" Totgterrsoft_maf01
+ print "    Total genotype errors (MAF>=0.01) (soft):\t\t" Totgterrsoft_maf001
+ print "    Total genotype errors (MAF>=0.001) (soft):\t\t" Totgterrsoft_maf0001
+ print "    Total genotype errors (MAF>=0.0001) (soft):\t\t" Totgterrsoft_maf00001
+ print "    Average gt error rate (soft):\t\t\t" (Totgterrsoft/Nquery/Mcheck)
+ print "    Average gt error rate (MAF>=0.1) (soft):\t\t" (Totgterrsoft_maf01/Nquery/Mcheck_maf01)
+ print "    Average gt error rate (MAF>=0.01) (soft):\t\t" (Totgterrsoft_maf001/Nquery/Mcheck_maf001)
+ print "    Average gt error rate (MAF>=0.001) (soft):\t\t" (Totgterrsoft_maf0001/Nquery/Mcheck_maf0001)
+ print "    Average gt error rate (MAF>=0.0001) (soft):\t\t" (Totgterrsoft_maf00001/Nquery/Mcheck_maf00001)
+ print "    correlation r2 (complete) (soft):\t\t\t" (r2sum_compl_soft/Mcheck)
+ print "    correlation r2 (complete, MAF>=0.1) (soft):\t\t" (r2sum_compl_soft_maf01/Mcheck_maf01)
+ print "    correlation r2 (complete, MAF>=0.01) (soft):\t" (r2sum_compl_soft_maf001/Mcheck_maf001)
+ print "    correlation r2 (complete, MAF>=0.001) (soft):\t" (r2sum_compl_soft_maf0001/Mcheck_maf0001)
+ print "    correlation r2 (complete, MAF>=0.0001) (soft):\t" (r2sum_compl_soft_maf00001/Mcheck_maf00001)
+ print "    correlation r2 (var av.) (soft):\t\t\t" (r2sum_varav_soft/Mcheck)
+ print "    correlation r2 (var av., MAF>=0.1) (soft):\t\t" (r2sum_varav_soft_maf01/Mcheck_maf01)
+ print "    correlation r2 (var av., MAF>=0.01) (soft):\t\t" (r2sum_varav_soft_maf001/Mcheck_maf001)
+ print "    correlation r2 (var av., MAF>=0.001) (soft):\t" (r2sum_varav_soft_maf0001/Mcheck_maf0001)
+ print "    correlation r2 (var av., MAF>=0.0001) (soft):\t" (r2sum_varav_soft_maf00001/Mcheck_maf00001)
+ print
+ print "  Switch errors:"
+ print "    Total switch errors:\t" Totswerr
+ print "    Average sw error rate:\t" (Totswerr/Nquery/Mcheck)
+ print
+ print "  Switch errors (typed):"
+ print "    Total switch errors (typed):\t" Totswerrtyped
+ print "    Average sw error rate (typed):\t" (Totswerrtyped/Nquery/Mtyped)
+ print
 }' $@
