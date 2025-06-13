@@ -134,6 +134,13 @@ END {
  print "  Checked MAF>=0.0001:\t\t" Mcheck_maf00001
  print "  Checked typed variants:\t" Mtyped
  print
+
+ # prevent division by zero errors due to missing information
+ if (Mcheck_maf01 == 0) Mcheck_maf01 = 1
+ if (Mcheck_maf001 == 0) Mcheck_maf001 = 1
+ if (Mcheck_maf0001 == 0) Mcheck_maf0001 = 1
+ if (Mcheck_maf00001 == 0) Mcheck_maf00001 = 1
+
  print "  Genotype errors (hard):"
  print "    Total genotype errors:\t\t\t" Totgterr
  print "    Total genotype errors (MAF>=0.1):\t\t" Totgterr_maf01
