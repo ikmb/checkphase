@@ -500,11 +500,11 @@ int main(int argc, char *argv[]) {
         // count in MAF categories
         if (maf >= 0.1)
             Mmaf01++;
-        if (maf >= 0.01)
+        else if (maf >= 0.01)
             Mmaf001++;
-        if (maf >= 0.001)
+        else if (maf >= 0.001)
             Mmaf0001++;
-        if (maf >= 0.0001)
+        else if (maf >= 0.0001)
             Mmaf00001++;
 
         // count checked typed variants
@@ -599,21 +599,21 @@ int main(int argc, char *argv[]) {
                 gt2SumQ_maf01[q] += qgt*qgt;
                 gtSumRefQ_maf01[q] += refgt * qgt;
             }
-            if (maf >= 0.01) {
+            else if (maf >= 0.01) {
                 gtSumRef_maf001[q] += refgt;
                 gt2SumRef_maf001[q] += refgt*refgt;
                 gtSumQ_maf001[q] += qgt;
                 gt2SumQ_maf001[q] += qgt*qgt;
                 gtSumRefQ_maf001[q] += refgt * qgt;
             }
-            if (maf >= 0.001) {
+            else if (maf >= 0.001) {
                 gtSumRef_maf0001[q] += refgt;
                 gt2SumRef_maf0001[q] += refgt*refgt;
                 gtSumQ_maf0001[q] += qgt;
                 gt2SumQ_maf0001[q] += qgt*qgt;
                 gtSumRefQ_maf0001[q] += refgt * qgt;
             }
-            if (maf >= 0.0001) {
+            else if (maf >= 0.0001) {
                 gtSumRef_maf00001[q] += refgt;
                 gt2SumRef_maf00001[q] += refgt*refgt;
                 gtSumQ_maf00001[q] += qgt;
@@ -668,11 +668,11 @@ int main(int argc, char *argv[]) {
                 gtErrorsSoft[q] += err;
                 if (maf >= 0.1)
                     gtErrorsSoft_maf01[q] += err;
-                if (maf >= 0.01)
+                else if (maf >= 0.01)
                     gtErrorsSoft_maf001[q] += err;
-                if (maf >= 0.001)
+                else if (maf >= 0.001)
                     gtErrorsSoft_maf0001[q] += err;
-                if (maf >= 0.0001)
+                else if (maf >= 0.0001)
                     gtErrorsSoft_maf00001[q] += err;
                 // genotype dosage = ads0 + ads1
                 double gtdos = qdosmat + (diploid ? qdospat : 0);
@@ -684,17 +684,17 @@ int main(int argc, char *argv[]) {
                     gtDos2SumQ_maf01[currbin][q] += gtdos*gtdos;
                     gtDosSumRefQ_maf01[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
                 }
-                if (maf >= 0.01) {
+                else if (maf >= 0.01) {
                     gtDosSumQ_maf001[currbin][q] += gtdos;
                     gtDos2SumQ_maf001[currbin][q] += gtdos*gtdos;
                     gtDosSumRefQ_maf001[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
                 }
-                if (maf >= 0.001) {
+                else if (maf >= 0.001) {
                     gtDosSumQ_maf0001[currbin][q] += gtdos;
                     gtDos2SumQ_maf0001[currbin][q] += gtdos*gtdos;
                     gtDosSumRefQ_maf0001[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
                 }
-                if (maf >= 0.0001) {
+                else if (maf >= 0.0001) {
                     gtDosSumQ_maf00001[currbin][q] += gtdos;
                     gtDos2SumQ_maf00001[currbin][q] += gtdos*gtdos;
                     gtDosSumRefQ_maf00001[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
@@ -709,11 +709,11 @@ int main(int argc, char *argv[]) {
                 gtErrors[q]++;
                 if (maf >= 0.1)
                     gtErrors_maf01[q]++;
-                if (maf >= 0.01)
+                else if (maf >= 0.01)
                     gtErrors_maf001[q]++;
-                if (maf >= 0.001)
+                else if (maf >= 0.001)
                     gtErrors_maf0001[q]++;
-                if (maf >= 0.0001)
+                else if (maf >= 0.0001)
                     gtErrors_maf00001[q]++;
                 continue;
             }
@@ -759,29 +759,29 @@ int main(int argc, char *argv[]) {
 
         // variant-wise correlation r2
         double r2 = calc_r2_hard(Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
-        if (!isnan(r2)) { // add only if it is a number, otherwise it's treated as zero
+        if (!isnan(r2) && !isinf(r2)) { // add only if it is a number, otherwise it's treated as zero
             r2Sum[currbin] += r2;
             if (maf >= 0.1)
                 r2Sum_maf01[currbin] += r2;
-            if (maf >= 0.01)
+            else if (maf >= 0.01)
                 r2Sum_maf001[currbin] += r2;
-            if (maf >= 0.001)
+            else if (maf >= 0.001)
                 r2Sum_maf0001[currbin] += r2;
-            if (maf >= 0.0001)
+            else if (maf >= 0.0001)
                 r2Sum_maf00001[currbin] += r2;
         }
         double r2soft = 0.0;
         if (havedosages) {
             r2soft = calc_r2_soft(Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
-            if (!isnan(r2soft)) { // add only if it is a number, otherwise it's treated as zero
+            if (!isnan(r2soft) && !isinf(r2soft)) { // add only if it is a number, otherwise it's treated as zero
                 r2SoftSum[currbin] += r2soft;
                 if (maf >= 0.1)
                     r2SoftSum_maf01[currbin] += r2soft;
-                if (maf >= 0.01)
+                else if (maf >= 0.01)
                     r2SoftSum_maf001[currbin] += r2soft;
-                if (maf >= 0.001)
+                else if (maf >= 0.001)
                     r2SoftSum_maf0001[currbin] += r2soft;
-                if (maf >= 0.0001)
+                else if (maf >= 0.0001)
                     r2SoftSum_maf00001[currbin] += r2soft;
             }
         }
