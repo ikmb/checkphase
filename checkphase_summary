@@ -189,8 +189,10 @@ END {
  print "    Total switch errors:\t" Totswerr
  print "    Average sw error rate:\t" (Totswerr/Nquery/Mcheck)
  print
- print "  Switch errors (typed):"
- print "    Total switch errors (typed):\t" Totswerrtyped
- print "    Average sw error rate (typed):\t" (Totswerrtyped/Nquery/Mtyped)
+ if (Mtyped) {
+  print "  Switch errors (typed):"
+  print "    Total switch errors (typed):\t" Totswerrtyped
+  print "    Average sw error rate (typed):\t" (Totswerrtyped/Nquery/Mtyped)
+ }
  print
 }' $@
