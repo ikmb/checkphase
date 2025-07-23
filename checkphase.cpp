@@ -829,11 +829,11 @@ int main(int argc, char *argv[]) {
         // variant-wise correlation r2:
         double r2 = 0.0;
         // PCC-based r2:
-        // as PCC cannot be calculated for a perfect correlation with no variance, we set r2 to 1.0 if there's no error
-        if (gterrsum == 0)
-            r2 = 1.0;
-        else
-            r2 = calc_r2_hard(Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
+//        // as PCC cannot be calculated for a perfect correlation with no variance, we set r2 to 1.0 if there's no error
+//        if (gterrsum == 0)
+//            r2 = 1.0;
+//        else
+        r2 = calc_r2_hard(Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
 //        // coefficient of determination:
 //        double r2 = 1.0 - gterr2sum / gtdev2sum;
         if (!isnan(r2) && !isinf(r2)) { // add only if it is a number, otherwise it's treated as zero
@@ -856,11 +856,11 @@ int main(int argc, char *argv[]) {
         double r2soft = 0.0;
         if (havedosages) {
             // PCC-based r2:
-            // as PCC cannot be calculated for a perfect correlation with no variance, we set r2 to 1.0 if there's no error
-            if (gtdoserrsum < 0.000001) // < epsilon
-                r2soft = 1.0;
-            else
-                r2soft = calc_r2_soft(Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
+//            // as PCC cannot be calculated for a perfect correlation with no variance, we set r2 to 1.0 if there's no error
+//            if (gtdoserrsum < 0.000001) // < epsilon
+//                r2soft = 1.0;
+//            else
+            r2soft = calc_r2_soft(Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
 //            // coefficient of determination:
 //            r2soft = 1.0 - gtdoserr2sum / gtdosdev2sum;
             if (!isnan(r2soft) && !isinf(r2soft)) { // add only if it is a number, otherwise it's treated as zero
