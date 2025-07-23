@@ -55,11 +55,21 @@ gawk 'BEGIN {
  Totgterr_maf001=0
  Totgterr_maf0001=0
  Totgterr_maf00001=0
+ Totgterr2=0
+ Totgterr2_maf01=0
+ Totgterr2_maf001=0
+ Totgterr2_maf0001=0
+ Totgterr2_maf00001=0
  Totgterrsoft=0.0
  Totgterrsoft_maf01=0.0
  Totgterrsoft_maf001=0.0
  Totgterrsoft_maf0001=0.0
  Totgterrsoft_maf00001=0.0
+ Totgterr2soft=0.0
+ Totgterr2soft_maf01=0.0
+ Totgterr2soft_maf001=0.0
+ Totgterr2soft_maf0001=0.0
+ Totgterr2soft_maf00001=0.0
  Totswerr=0
  Totswerrtyped=0
  r2sum_compl=0.0
@@ -106,11 +116,21 @@ gawk 'BEGIN {
 /Total genotype errors \(MAF>=0.01\):/{Totgterr_maf001 += $5; next}
 /Total genotype errors \(MAF>=0.001\):/{Totgterr_maf0001 += $5; next}
 /Total genotype errors \(MAF>=0.0001\):/{Totgterr_maf00001 += $5; next}
+/Total squared errors:/{Totgterr2 += $4; next}
+/Total squared errors \(MAF>=0.1\):/{Totgterr2_maf01 += $5; next}
+/Total squared errors \(MAF>=0.01\):/{Totgterr2_maf001 += $5; next}
+/Total squared errors \(MAF>=0.001\):/{Totgterr2_maf0001 += $5; next}
+/Total squared errors \(MAF>=0.0001\):/{Totgterr2_maf00001 += $5; next}
 /Total genotype errors \(soft\):/{Totgterrsoft += $5; next}
 /Total genotype errors \(MAF>=0.1\) \(soft\):/{Totgterrsoft_maf01 += $6; next}
 /Total genotype errors \(MAF>=0.01\) \(soft\):/{Totgterrsoft_maf001 += $6; next}
 /Total genotype errors \(MAF>=0.001\) \(soft\):/{Totgterrsoft_maf0001 += $6; next}
 /Total genotype errors \(MAF>=0.0001\) \(soft\):/{Totgterrsoft_maf00001 += $6; next}
+/Total squared errors \(soft\):/{Totgterr2soft += $5; next}
+/Total squared errors \(MAF>=0.1\) \(soft\):/{Totgterr2soft_maf01 += $6; next}
+/Total squared errors \(MAF>=0.01\) \(soft\):/{Totgterr2soft_maf001 += $6; next}
+/Total squared errors \(MAF>=0.001\) \(soft\):/{Totgterr2soft_maf0001 += $6; next}
+/Total squared errors \(MAF>=0.0001\) \(soft\):/{Totgterr2soft_maf00001 += $6; next}
 /Total switch errors:/{Totswerr += $4; next}
 /Total switch errors \(typed\):/{Totswerrtyped += $5; next}
 
@@ -172,6 +192,11 @@ END {
  print "    Average gt error rate (MAF>=0.01):\t\t" (Totgterr_maf001/Nquery/Mcheck_maf001)
  print "    Average gt error rate (MAF>=0.001):\t\t" (Totgterr_maf0001/Nquery/Mcheck_maf0001)
  print "    Average gt error rate (MAF>=0.0001):\t" (Totgterr_maf00001/Nquery/Mcheck_maf00001)
+ print "    Mean squared error:\t\t\t\t" (Totgterr2/Nquery/Mcheck)
+ print "    Mean squared error (MAF>=0.1):\t\t" (Totgterr2_maf01/Nquery/Mcheck_maf01)
+ print "    Mean squared error (MAF>=0.01):\t\t" (Totgterr2_maf001/Nquery/Mcheck_maf001)
+ print "    Mean squared error (MAF>=0.001):\t\t" (Totgterr2_maf0001/Nquery/Mcheck_maf0001)
+ print "    Mean squared error (MAF>=0.0001):\t\t" (Totgterr2_maf00001/Nquery/Mcheck_maf00001)
  print "    correlation r2 (complete):\t\t\t" (r2sum_compl/Mcheck)
  print "    correlation r2 (complete, MAF>=0.1):\t" (r2sum_compl_maf01/Mcheck_maf01)
  print "    correlation r2 (complete, MAF>=0.01):\t" (r2sum_compl_maf001/Mcheck_maf001)
@@ -194,6 +219,11 @@ END {
  print "    Average gt error rate (MAF>=0.01) (soft):\t\t" (Totgterrsoft_maf001/Nquery/Mcheck_maf001)
  print "    Average gt error rate (MAF>=0.001) (soft):\t\t" (Totgterrsoft_maf0001/Nquery/Mcheck_maf0001)
  print "    Average gt error rate (MAF>=0.0001) (soft):\t\t" (Totgterrsoft_maf00001/Nquery/Mcheck_maf00001)
+ print "    Mean squared error (soft):\t\t\t\t" (Totgterr2soft/Nquery/Mcheck)
+ print "    Mean squared error (MAF>=0.1) (soft):\t\t" (Totgterr2soft_maf01/Nquery/Mcheck_maf01)
+ print "    Mean squared error (MAF>=0.01) (soft):\t\t" (Totgterr2soft_maf001/Nquery/Mcheck_maf001)
+ print "    Mean squared error (MAF>=0.001) (soft):\t\t" (Totgterr2soft_maf0001/Nquery/Mcheck_maf0001)
+ print "    Mean squared error (MAF>=0.0001) (soft):\t\t" (Totgterr2soft_maf00001/Nquery/Mcheck_maf00001)
  print "    correlation r2 (complete) (soft):\t\t\t" (r2sum_compl_soft/Mcheck)
  print "    correlation r2 (complete, MAF>=0.1) (soft):\t\t" (r2sum_compl_soft_maf01/Mcheck_maf01)
  print "    correlation r2 (complete, MAF>=0.01) (soft):\t" (r2sum_compl_soft_maf001/Mcheck_maf001)

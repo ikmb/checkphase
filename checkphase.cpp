@@ -270,11 +270,21 @@ int main(int argc, char *argv[]) {
     vector<size_t> gtErrors_maf001(Nquery, 0);
     vector<size_t> gtErrors_maf0001(Nquery, 0);
     vector<size_t> gtErrors_maf00001(Nquery, 0);
+    vector<size_t> gtErr2(Nquery, 0);
+    vector<size_t> gtErr2_maf01(Nquery, 0);
+    vector<size_t> gtErr2_maf001(Nquery, 0);
+    vector<size_t> gtErr2_maf0001(Nquery, 0);
+    vector<size_t> gtErr2_maf00001(Nquery, 0);
     vector<double> gtErrorsSoft(Nquery, 0.0);
     vector<double> gtErrorsSoft_maf01(Nquery, 0.0);
     vector<double> gtErrorsSoft_maf001(Nquery, 0.0);
     vector<double> gtErrorsSoft_maf0001(Nquery, 0.0);
     vector<double> gtErrorsSoft_maf00001(Nquery, 0.0);
+    vector<double> gtErr2Soft(Nquery, 0.0);
+    vector<double> gtErr2Soft_maf01(Nquery, 0.0);
+    vector<double> gtErr2Soft_maf001(Nquery, 0.0);
+    vector<double> gtErr2Soft_maf0001(Nquery, 0.0);
+    vector<double> gtErr2Soft_maf00001(Nquery, 0.0);
     // correlation r2
     vector<size_t> gtSumRef(Nquery, 0.0);
     vector<size_t> gt2SumRef(Nquery, 0.0);
@@ -704,14 +714,20 @@ int main(int argc, char *argv[]) {
 //                    err = (1.0-qdosmat)*(1.0-qdospat) + qdosmat*qdospat; // 1-gp1 = 1-(1-gp0-gp2) = gp0+gp2
                 }
                 gtErrorsSoft[q] += err;
-                if (maf >= 0.1)
+                gtErr2Soft[q] += err*err;
+                if (maf >= 0.1) {
                     gtErrorsSoft_maf01[q] += err;
-                else if (maf >= 0.01)
+                    gtErr2Soft_maf01[q] += err*err;
+                } else if (maf >= 0.01) {
                     gtErrorsSoft_maf001[q] += err;
-                else if (maf >= 0.001)
+                    gtErr2Soft_maf001[q] += err*err;
+                } else if (maf >= 0.001) {
                     gtErrorsSoft_maf0001[q] += err;
-                else if (maf >= 0.0001)
+                    gtErr2Soft_maf0001[q] += err*err;
+                } else if (maf >= 0.0001) {
                     gtErrorsSoft_maf00001[q] += err;
+                    gtErr2Soft_maf00001[q] += err*err;
+                }
                 // genotype dosage = ads0 + ads1
                 double gtdos = qdosmat + (diploid ? qdospat : 0);
                 gtDosSumQ[currbin][q] += gtdos;
@@ -754,14 +770,20 @@ int main(int argc, char *argv[]) {
 //            gtdev2sum += dev*dev;
             if (err) { // genotype error -> continue with next sample
                 gtErrors[q] += err;
-                if (maf >= 0.1)
+                gtErr2[q] += err*err;
+                if (maf >= 0.1) {
                     gtErrors_maf01[q] += err;
-                else if (maf >= 0.01)
+                    gtErr2_maf01[q] += err*err;
+                } else if (maf >= 0.01) {
                     gtErrors_maf001[q] += err;
-                else if (maf >= 0.001)
+                    gtErr2_maf001[q] += err*err;
+                } else if (maf >= 0.001) {
                     gtErrors_maf0001[q] += err;
-                else if (maf >= 0.0001)
+                    gtErr2_maf0001[q] += err*err;
+                } else if (maf >= 0.0001) {
                     gtErrors_maf00001[q] += err;
+                    gtErr2_maf00001[q] += err*err;
+                }
                 continue;
             }
 
@@ -1065,6 +1087,11 @@ int main(int argc, char *argv[]) {
         size_t totalGtErrors_maf001 = 0;
         size_t totalGtErrors_maf0001 = 0;
         size_t totalGtErrors_maf00001 = 0;
+        size_t totalGtErr2 = 0;
+        size_t totalGtErr2_maf01 = 0;
+        size_t totalGtErr2_maf001 = 0;
+        size_t totalGtErr2_maf0001 = 0;
+        size_t totalGtErr2_maf00001 = 0;
         size_t gtErrorMin = 0xffffffffffffffffull;
         size_t gtErrorMax = 0;
         // calc total errors and identify min and max
@@ -1086,6 +1113,16 @@ int main(int argc, char *argv[]) {
             totalGtErrors_maf0001 += err;
         for (size_t err : gtErrors_maf00001)
             totalGtErrors_maf00001 += err;
+        for (double err : gtErr2)
+            totalGtErr2 += err;
+        for (double err : gtErr2_maf01)
+            totalGtErr2_maf01 += err;
+        for (double err : gtErr2_maf001)
+            totalGtErr2_maf001 += err;
+        for (double err : gtErr2_maf0001)
+            totalGtErr2_maf0001 += err;
+        for (double err : gtErr2_maf00001)
+            totalGtErr2_maf00001 += err;
         double avgterr = totalGtErrors / (double) Nquery;
         double mingterrrate = gtErrorMin / (double)Mcheck;
         double maxgterrrate = gtErrorMax / (double)Mcheck;
@@ -1094,6 +1131,11 @@ int main(int argc, char *argv[]) {
         double avgterrrate_maf001 = totalGtErrors_maf001 / (double)(Mmaf001 * Nquery);
         double avgterrrate_maf0001 = totalGtErrors_maf0001 / (double)(Mmaf0001 * Nquery);
         double avgterrrate_maf00001 = totalGtErrors_maf00001 / (double)(Mmaf00001 * Nquery);
+        double avgterr2  = totalGtErr2 / (double)(Mcheck * Nquery);
+        double avgterr2_maf01 = totalGtErr2_maf01 / (double)(Mmaf01 * Nquery);
+        double avgterr2_maf001 = totalGtErr2_maf001 / (double)(Mmaf001 * Nquery);
+        double avgterr2_maf0001 = totalGtErr2_maf0001 / (double)(Mmaf0001 * Nquery);
+        double avgterr2_maf00001 = totalGtErr2_maf00001 / (double)(Mmaf00001 * Nquery);
         // calc standard deviation and variance for error rates
         double totgtdev2 = 0.0;
         for (size_t err : gtErrors) {
@@ -1171,6 +1213,11 @@ int main(int argc, char *argv[]) {
         cout << "    Total genotype errors (MAF>=0.01):        " << totalGtErrors_maf001 << endl;
         cout << "    Total genotype errors (MAF>=0.001):       " << totalGtErrors_maf0001 << endl;
         cout << "    Total genotype errors (MAF>=0.0001):      " << totalGtErrors_maf00001 << endl;
+        cout << "    Total squared errors:                     " << totalGtErr2 << endl;
+        cout << "    Total squared errors (MAF>=0.1):          " << totalGtErr2_maf01 << endl;
+        cout << "    Total squared errors (MAF>=0.01):         " << totalGtErr2_maf001 << endl;
+        cout << "    Total squared errors (MAF>=0.001):        " << totalGtErr2_maf0001 << endl;
+        cout << "    Total squared errors (MAF>=0.0001):       " << totalGtErr2_maf00001 << endl;
         cout << "    Minimum genotype errors:                  " << gtErrorMin << endl;
         cout << "    Maximum genotype errors:                  " << gtErrorMax << endl;
         cout << "    Average gt err per sample:                " << avgterr << endl;
@@ -1181,6 +1228,11 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (MAF>=0.01):        " << avgterrrate_maf001 << endl;
         cout << "    Average gt error rate (MAF>=0.001):       " << avgterrrate_maf0001 << endl;
         cout << "    Average gt error rate (MAF>=0.0001):      " << avgterrrate_maf00001 << endl;
+        cout << "    Mean squared error:                       " << avgterr2 << endl;
+        cout << "    Mean squared error (MAF>=0.1):            " << avgterr2_maf01 << endl;
+        cout << "    Mean squared error (MAF>=0.01):           " << avgterr2_maf001 << endl;
+        cout << "    Mean squared error (MAF>=0.001):          " << avgterr2_maf0001 << endl;
+        cout << "    Mean squared error (MAF>=0.0001):         " << avgterr2_maf00001 << endl;
         cout << "    Standard GER deviation:                   " << gerdev << endl;
         cout << "    correlation r2 (complete):                " << r2 << endl;
         cout << "    correlation r2 (complete, MAF>=0.1):      " << r2_maf01 << endl;
@@ -1208,6 +1260,11 @@ int main(int argc, char *argv[]) {
         double totalGtErrorsSoft_maf001 = 0;
         double totalGtErrorsSoft_maf0001 = 0;
         double totalGtErrorsSoft_maf00001 = 0;
+        double totalGtErr2Soft = 0;
+        double totalGtErr2Soft_maf01 = 0;
+        double totalGtErr2Soft_maf001 = 0;
+        double totalGtErr2Soft_maf0001 = 0;
+        double totalGtErr2Soft_maf00001 = 0;
         double gtErrorMinSoft = 0xffffffffffffffffull;
         double gtErrorMaxSoft = 0;
         // calc total errors and identify min and max
@@ -1229,6 +1286,16 @@ int main(int argc, char *argv[]) {
             totalGtErrorsSoft_maf0001 += err;
         for (double err : gtErrorsSoft_maf00001)
             totalGtErrorsSoft_maf00001 += err;
+        for (double err : gtErr2Soft)
+            totalGtErr2Soft += err;
+        for (double err : gtErr2Soft_maf01)
+            totalGtErr2Soft_maf01 += err;
+        for (double err : gtErr2Soft_maf001)
+            totalGtErr2Soft_maf001 += err;
+        for (double err : gtErr2Soft_maf0001)
+            totalGtErr2Soft_maf0001 += err;
+        for (double err : gtErr2Soft_maf00001)
+            totalGtErr2Soft_maf00001 += err;
         double avgterr = totalGtErrorsSoft / (double) Nquery;
         double mingterrrate = gtErrorMinSoft / (double)Mcheck;
         double maxgterrrate = gtErrorMaxSoft / (double)Mcheck;
@@ -1237,6 +1304,11 @@ int main(int argc, char *argv[]) {
         double avgterrrate_maf001 = totalGtErrorsSoft_maf001 / (double)(Mmaf001 * Nquery);
         double avgterrrate_maf0001 = totalGtErrorsSoft_maf0001 / (double)(Mmaf0001 * Nquery);
         double avgterrrate_maf00001 = totalGtErrorsSoft_maf00001 / (double)(Mmaf00001 * Nquery);
+        double avgterr2  = totalGtErr2Soft / (double)(Mcheck * Nquery);
+        double avgterr2_maf01 = totalGtErr2Soft_maf01 / (double)(Mmaf01 * Nquery);
+        double avgterr2_maf001 = totalGtErr2Soft_maf001 / (double)(Mmaf001 * Nquery);
+        double avgterr2_maf0001 = totalGtErr2Soft_maf0001 / (double)(Mmaf0001 * Nquery);
+        double avgterr2_maf00001 = totalGtErr2Soft_maf00001 / (double)(Mmaf00001 * Nquery);
         // calc standard deviation and variance for error rates
         double totgtdev2 = 0.0;
         for (double err : gtErrorsSoft) {
@@ -1314,6 +1386,11 @@ int main(int argc, char *argv[]) {
         cout << "    Total genotype errors (MAF>=0.01) (soft):        " << totalGtErrorsSoft_maf001 << endl;
         cout << "    Total genotype errors (MAF>=0.001) (soft):       " << totalGtErrorsSoft_maf0001 << endl;
         cout << "    Total genotype errors (MAF>=0.0001) (soft):      " << totalGtErrorsSoft_maf00001 << endl;
+        cout << "    Total squared errors (soft):                     " << totalGtErr2Soft << endl;
+        cout << "    Total squared errors (MAF>=0.1) (soft):          " << totalGtErr2Soft_maf01 << endl;
+        cout << "    Total squared errors (MAF>=0.01) (soft):         " << totalGtErr2Soft_maf001 << endl;
+        cout << "    Total squared errors (MAF>=0.001) (soft):        " << totalGtErr2Soft_maf0001 << endl;
+        cout << "    Total squared errors (MAF>=0.0001) (soft):       " << totalGtErr2Soft_maf00001 << endl;
         cout << "    Minimum genotype errors (soft):                  " << gtErrorMinSoft << endl;
         cout << "    Maximum genotype errors (soft):                  " << gtErrorMaxSoft << endl;
         cout << "    Average gt err per sample (soft):                " << avgterr << endl;
@@ -1324,6 +1401,11 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (MAF>=0.01) (soft):        " << avgterrrate_maf001 << endl;
         cout << "    Average gt error rate (MAF>=0.001) (soft):       " << avgterrrate_maf0001 << endl;
         cout << "    Average gt error rate (MAF>=0.0001) (soft):      " << avgterrrate_maf00001 << endl;
+        cout << "    Mean squared error (soft):                       " << avgterr2 << endl;
+        cout << "    Mean squared error (MAF>=0.1) (soft):            " << avgterr2_maf01 << endl;
+        cout << "    Mean squared error (MAF>=0.01) (soft):           " << avgterr2_maf001 << endl;
+        cout << "    Mean squared error (MAF>=0.001) (soft):          " << avgterr2_maf0001 << endl;
+        cout << "    Mean squared error (MAF>=0.0001) (soft):         " << avgterr2_maf00001 << endl;
         cout << "    Standard GER deviation (soft):                   " << gerdev << endl;
         cout << "    correlation r2 (complete) (soft):                " << r2 << endl;
         cout << "    correlation r2 (complete, MAF>=0.1) (soft):      " << r2_maf01 << endl;
