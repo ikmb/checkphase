@@ -39,6 +39,16 @@ gawk 'BEGIN {
  Mchecklocal_maf001=0
  Mchecklocal_maf0001=0
  Mchecklocal_maf00001=0
+ Mr2=0
+ Mr2_maf01=0
+ Mr2_maf001=0
+ Mr2_maf0001=0
+ Mr2_maf00001=0
+ Mr2local=0
+ Mr2local_maf01=0
+ Mr2local_maf001=0
+ Mr2local_maf0001=0
+ Mr2local_maf00001=0
  Mtyped=0
  Totgterr=0
  Totgterr_maf01=0
@@ -83,6 +93,11 @@ gawk 'BEGIN {
 /Checked MAF>=0.01:/{Mcheck_maf001 += $3; Mchecklocal_maf001 = $3; next}
 /Checked MAF>=0.001:/{Mcheck_maf0001 += $3; Mchecklocal_maf0001 = $3; next}
 /Checked MAF>=0.0001:/{Mcheck_maf00001 += $3; Mchecklocal_maf00001 = $3; next}
+/R2 variants:/{Mr2 += $3; Mr2local = $3; next}
+/R2 variants MAF>=0.1:/{Mr2_maf01 += $4; Mr2local_maf01 = $4; next}
+/R2 variants MAF>=0.01:/{Mr2_maf001 += $4; Mr2local_maf001 = $4; next}
+/R2 variants MAF>=0.001:/{Mr2_maf0001 += $4; Mr2local_maf0001 = $4; next}
+/R2 variants MAF>=0.0001:/{Mr2_maf00001 += $4; Mr2local_maf00001 = $4; next}
 /Checked typed variants:/{Mtyped += $4; next}
 
 # add errors
@@ -132,6 +147,11 @@ END {
  print "  Checked MAF>=0.01:\t\t" Mcheck_maf001
  print "  Checked MAF>=0.001:\t\t" Mcheck_maf0001
  print "  Checked MAF>=0.0001:\t\t" Mcheck_maf00001
+ print "  R2 variants:\t\t\t" Mr2
+ print "  R2 variants MAF>=0.1:\t\t" Mr2_maf01
+ print "  R2 variants MAF>=0.01:\t" Mr2_maf001
+ print "  R2 variants MAF>=0.001:\t" Mr2_maf0001
+ print "  R2 variants MAF>=0.0001:\t" Mr2_maf00001
  print "  Checked typed variants:\t" Mtyped
  print
 

@@ -229,6 +229,17 @@ int main(int argc, char *argv[]) {
     size_t Mmaf00001 = 0; // shared variants with RefPanelMAF >= 0.0001
     size_t Mtyped = 0; // shared variants with TYPED tag
 
+    size_t Mr2 = 0;
+    size_t Mr2_01 = 0;
+    size_t Mr2_001 = 0;
+    size_t Mr2_0001 = 0;
+    size_t Mr2_00001 = 0;
+    size_t Mr2soft = 0;
+    size_t Mr2soft_01 = 0;
+    size_t Mr2soft_001 = 0;
+    size_t Mr2soft_0001 = 0;
+    size_t Mr2soft_00001 = 0;
+
     int mref_gt = 0; void *ref_gt = NULL; // will be allocated once in bcf_get_genotypes() and then reused for each marker (need void* because of htslib)
     int mtgt_gt = 0; void *tgt_gt = NULL; // will be allocated once in bcf_get_genotypes() and then reused for each marker (need void* because of htslib)
     int ndosbuf = 0; void *dosbuf = NULL;
@@ -534,11 +545,13 @@ int main(int argc, char *argv[]) {
         double gtdossumq = 0.0;
         double gtdos2sumq = 0.0;
         double gtdossumrefq = 0.0;
-        // for variant-wise correlation (R2)
-        size_t gterr2sum = 0;
-        double gtdev2sum = 0;
-        double gtdoserr2sum = 0;
-        double gtdosdev2sum = 0;
+
+        size_t gterrsum = 0;
+        double gtdoserrsum = 0;
+//        size_t gterr2sum = 0;
+//        double gtdev2sum = 0;
+//        double gtdoserr2sum = 0;
+//        double gtdosdev2sum = 0;
 
         // check samples
         for (size_t q = 0; q < Nquery; q++) {
@@ -560,6 +573,7 @@ int main(int argc, char *argv[]) {
                     MrefMissing[q]++;
                 if (bcf_gt_is_missing(qmat_i) || bcf_gt_is_missing(qpat_i))
                     MqMissing[q]++;
+                // TODO We normally do not encounter this after imputation, but this should still be considered in the error statistics!
                 continue;
             }
 
@@ -727,10 +741,18 @@ int main(int argc, char *argv[]) {
                 gtdos2sumq += gtdos*gtdos;
                 gtdossumrefq += (refgt * gtdos) / (diploid ? 1 : 2);
 
+                gtdoserrsum += err;
+//                gtdoserr2sum += err*err;
+//                double dev = diploid ? (gtdos-2*af) : (gtdos-af); // using the ref panel AF here as the "expected average genotype" (2x for diploid as a genotype average is expected)
+//                gtdosdev2sum += dev*dev;
             }
             // hard check
-            if (refgt != qgt) { // genotype error -> continue with next sample
-                int err = abs(refgt - qgt);
+            int err = abs(refgt - qgt);
+            gterrsum += err;
+//            gterr2sum += err*err;
+//            double dev =  diploid ? (qgt-2*af) : (qgt-af); // using the ref panel AF here as the "expected average genotype" (2x for diploid as a genotype average is expected)
+//            gtdev2sum += dev*dev;
+            if (err) { // genotype error -> continue with next sample
                 gtErrors[q] += err;
                 if (maf >= 0.1)
                     gtErrors_maf01[q] += err;
@@ -782,32 +804,59 @@ int main(int argc, char *argv[]) {
             }
         } // end for every sample
 
-        // variant-wise correlation r2
-        double r2 = calc_r2_hard(Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
+        // variant-wise correlation r2:
+        double r2 = 0.0;
+        // PCC-based r2:
+        // as PCC cannot be calculated for a perfect correlation with no variance, we set r2 to 1.0 if there's no error
+        if (gterrsum == 0)
+            r2 = 1.0;
+        else
+            r2 = calc_r2_hard(Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
+//        // coefficient of determination:
+//        double r2 = 1.0 - gterr2sum / gtdev2sum;
         if (!isnan(r2) && !isinf(r2)) { // add only if it is a number, otherwise it's treated as zero
             r2Sum[currbin] += r2;
-            if (maf >= 0.1)
+            Mr2++;
+            if (maf >= 0.1) {
                 r2Sum_maf01[currbin] += r2;
-            else if (maf >= 0.01)
+                Mr2_01++;
+            } else if (maf >= 0.01) {
                 r2Sum_maf001[currbin] += r2;
-            else if (maf >= 0.001)
+                Mr2_001++;
+            } else if (maf >= 0.001) {
                 r2Sum_maf0001[currbin] += r2;
-            else if (maf >= 0.0001)
+                Mr2_0001++;
+            } else if (maf >= 0.0001) {
                 r2Sum_maf00001[currbin] += r2;
+                Mr2_00001++;
+            }
         }
         double r2soft = 0.0;
         if (havedosages) {
-            r2soft = calc_r2_soft(Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
+            // PCC-based r2:
+            // as PCC cannot be calculated for a perfect correlation with no variance, we set r2 to 1.0 if there's no error
+            if (gtdoserrsum < 0.000001) // < epsilon
+                r2soft = 1.0;
+            else
+                r2soft = calc_r2_soft(Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
+//            // coefficient of determination:
+//            r2soft = 1.0 - gtdoserr2sum / gtdosdev2sum;
             if (!isnan(r2soft) && !isinf(r2soft)) { // add only if it is a number, otherwise it's treated as zero
                 r2SoftSum[currbin] += r2soft;
-                if (maf >= 0.1)
+                Mr2soft++;
+                if (maf >= 0.1) {
                     r2SoftSum_maf01[currbin] += r2soft;
-                else if (maf >= 0.01)
+                    Mr2soft_01++;
+                } else if (maf >= 0.01) {
                     r2SoftSum_maf001[currbin] += r2soft;
-                else if (maf >= 0.001)
+                    Mr2soft_001++;
+                } else if (maf >= 0.001) {
                     r2SoftSum_maf0001[currbin] += r2soft;
-                else if (maf >= 0.0001)
+                    Mr2soft_0001++;
+                } else if (maf >= 0.0001) {
                     r2SoftSum_maf00001[currbin] += r2soft;
+                    Mr2soft_00001++;
+                }
             }
         }
 
@@ -843,6 +892,11 @@ int main(int argc, char *argv[]) {
     cout << "  Checked MAF>=0.01:        " << Mmaf001 << endl;
     cout << "  Checked MAF>=0.001:       " << Mmaf0001 << endl;
     cout << "  Checked MAF>=0.0001:      " << Mmaf00001 << endl;
+    cout << "  R2 variants:              " << Mr2soft << endl;
+    cout << "  R2 variants MAF>=0.1:     " << Mr2soft_01 << endl;
+    cout << "  R2 variants MAF>=0.01:    " << Mr2soft_001 << endl;
+    cout << "  R2 variants MAF>=0.001:   " << Mr2soft_0001 << endl;
+    cout << "  R2 variants MAF>=0.0001:  " << Mr2soft_00001 << endl;
     cout << "  Checked typed variants:   " << Mtyped << endl;
     cout << endl;
 
