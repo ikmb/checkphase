@@ -361,6 +361,15 @@ int main(int argc, char *argv[]) {
     // we sum up dosages in bins to compensate for numeric instability
     size_t currbin = 0;
 
+    // if per-variant information is desired, print the header
+    if (pervariant) {
+        cerr << "CHR\tPOS\tREF\tALT";
+        cerr << "\tTYPED";
+        cerr << "\trpMAF";
+        // TODO add header tags for additional info fields
+        cerr << endl;
+    }
+
     while (bcf_sr_next_line(sr)) { // read data SNP-wise in positional sorted order from query, reference and optional shared file
 
         bcf1_t *ref = bcf_sr_get_line(sr, 0); // read one line of reference, if available at current position (otherwise NULL)
@@ -492,6 +501,15 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
 
+        // Here, we found a shared variant.
+
+        if (pervariant) {
+            // print variant information
+            cerr << bcf_hdr_id2name(q_hdr, tgt->rid) << "\t" << tgt->pos+1 << "\t" << tgt->d.allele[0] << "\t" << tgt->d.allele[1];
+            // print TYPED information
+            cerr << "\t" << ( typed ? "TRUE" : "FALSE" );
+        }
+
         // check if variant is haploid
         bool haploid_ref = nref_gt == Nref;
         bool haploid_tgt = ntgt_gt == Nquery;
@@ -527,6 +545,11 @@ int main(int argc, char *argv[]) {
             // if the query is ref/alt swapped to the reference, we need to swap the allele frequency (again)
             if (refaltswap)
                 af = 1.0 - af;
+        }
+
+        if (pervariant) {
+            // print MAF
+            cerr << "\t" << maf;
         }
 
         // count in MAF categories
@@ -883,6 +906,10 @@ int main(int argc, char *argv[]) {
             if (Nqhap)
                 hapsset_tgt = true;
         } // else could perhaps throw an error if numbers don't match??
+
+        // close line in per-variant output
+        if (pervariant)
+            cerr << endl;
 
     } // end while read line
     cout << " done." << endl;

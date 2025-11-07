@@ -11,6 +11,8 @@ set(HTSLIB_SEARCH_DIRS
     /usr/lib/x86_64-linux-gnu
     /usr
     /usr/local
+    ~/lib
+    ~/include
 )
 
 set(_htslib_ver_path "htslib-${htslib_FIND_VERSION}")
