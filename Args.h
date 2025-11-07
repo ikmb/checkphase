@@ -86,8 +86,9 @@ public:
     string vcfShared;
     string statfile;
 
+    bool pervariant = false;
+
     bool debug = false;
-    bool dump = false;
 
 protected:
     /** Constructs the arguments list and adds all defined options */

@@ -134,12 +134,12 @@ int main(int argc, char *argv[]) {
     const string& queryfile = args.vcfQuery;
     const string& sharedfile = args.vcfShared;
     const char* statfile = args.statfile.empty() ? NULL : args.statfile.c_str();
-    bool dump = args.dump;
+    bool pervariant = args.pervariant;
 
     if (statfile)
         cout << "Statfile: " << statfile << endl;
-    if (dump)
-        cout << "--dump enabled. Will dump phase error positions to stderr." << endl;
+    if (pervariant)
+        cout << "--pervariant enabled. Will print per-variant information to stderr." << endl;
     cout << endl;
 
     updateStatus(statfile, 0, 0);
@@ -336,9 +336,6 @@ int main(int argc, char *argv[]) {
     vector<double> r2SoftSum_maf001;   // sum of per variant r2 for variants of MAF>=0.01, bins for each couple of queries
     vector<double> r2SoftSum_maf0001;  // sum of per variant r2 for variants of MAF>=0.001, bins for each couple of queries
     vector<double> r2SoftSum_maf00001; // sum of per variant r2 for variants of MAF>=0.0001, bins for each couple of queries
-
-    // used only when --dump is set
-    vector<vector<size_t>> errPos(Nquery);
 
     // for counting haploid samples
     bool hapsset_ref = false;
@@ -795,16 +792,12 @@ int main(int argc, char *argv[]) {
                     if (swerr) {
                         switched[q] = !switched[q];
                         switchErrors[q]++;
-                        if (dump)
-                            errPos[q].push_back(Mq-1); // error position is 0-based
                     }
                 } else { // first het site -> simply set the switched-flag according to the current phases in ref and query
                     initialized[q] = true;
                     if (refmat != qmat) {
                         switched[q] = true;
                         matPatSwitches[q] = true;
-                        if (dump)
-                            errPos[q].push_back(0); // indicates the difference at the first het, for debugging
                     }
                 }
                 if (typed) {
@@ -1454,8 +1447,6 @@ int main(int argc, char *argv[]) {
         double serdev = sqrt(servar);
 
         // tab-delimited list of queryID, mat/pat switched?, # swerrs, comma-separated list of sw error positions
-        if (dump)
-            cout << "Switch error positions (0-based) to cerr..." << endl;
         size_t errfree = 0;
         size_t matpatswitches = 0;
         for (size_t q = 0; q < Nquery; q++) {
@@ -1466,19 +1457,7 @@ int main(int argc, char *argv[]) {
             if (matpatsw) { // mat/pat switch
                 matpatswitches++;
             }
-            if (dump) {
-                const auto &ep = errPos[q];
-                cerr << q << "\t" << (matpatsw ? 1 : 0) << "\t" << (matpatsw ? (ep.size()-1) : ep.size()) << "\t";
-                auto epit = ep.begin();
-                if (matpatsw)
-                    epit++; // jump over the zero encoding the matpat switch
-                for (; epit != ep.end(); epit++)
-                    cerr << *epit << ",";
-                cerr << endl;
-            }
         }
-        if (dump)
-            cout << " done.\n" << endl;
 
         cout << "  Switch errors:" << endl;
         cout << "    Total switch errors:       " << totalSwErrors << endl;
