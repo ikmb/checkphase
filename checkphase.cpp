@@ -423,8 +423,8 @@ int main(int argc, char *argv[]) {
         }
         Mshared++;
 
-        // exclude monomorphic or multi-allelic markers
-        if (ref->n_allele != 2 || tgt->n_allele != 2) {
+        // exclude monomorphic or multi-allelic markers (only according to listed alleles, variants can still be monomorph if all samples contain the same genotype)
+        if (ref->n_allele != 2 || tgt->n_allele != 2 || (useshared && shd->n_allele < 2)) { // we still allow multi-allelic variants from shared file
             if (ref->n_allele != 2)
                 MrefError++;
             if (tgt->n_allele != 2)
@@ -518,7 +518,7 @@ int main(int argc, char *argv[]) {
         bool affroms = useshared && bcf_get_info_float(s_hdr, shd, "RefPanelAF", (void*)&af_ptr, &af_size) >= 0;
         if ( affromq       // successfully read RefPanelAF tag from query
             || affroms ) { // or successfully read RefPanelAF tag from shared file
-            af = *af_ptr; // if there's more than one RefPanelAF entry, take the first.
+            af = *af_ptr; // if there's more than one RefPanelAF entry, take the last, which is from shared file, else it's from query.
             if (af <= 0.5)
                 maf = af;
             else
