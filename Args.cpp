@@ -142,6 +142,7 @@ Args::Args(int argc, char *argv[]) :
     ("shared,s", value<string>(&vcfShared), "Tabix-indexed compressed VCF/BCF file containing variants that should exclusively be taken for the comparison. Does not need to contain genotypes (are ignored anyway). If RefPanelAF tag exists, MAF categories are enabled. (optional)")
     ("stat", value<string>(&statfile), "File for status output. (optional)")
     ("pervariant,p", "Prints tab-separated information per variant to stderr. A header line is added as well.")
+    ("noatcg", "Excludes variants that are different in target and reference and appear to be ref/alt swapped and strand flipped at the same time (most often A/T or C/G variants).")
     ;
 
     opts_hidden.add_options()
@@ -171,6 +172,9 @@ void Args::parseVars() {
 
     if (vars.count("pervariant"))
         pervariant = true;
+
+    if (vars.count("noatcg"))
+        noatcg = true;
 
     if (!vcfQuery.compare(vcfRef)) {
         cerr << "ERROR: Query and reference cannot be the same file." << endl;

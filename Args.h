@@ -87,6 +87,7 @@ public:
     string statfile;
 
     bool pervariant = false;
+    bool noatcg = false;
 
     bool debug = false;
 

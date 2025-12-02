@@ -135,6 +135,7 @@ int main(int argc, char *argv[]) {
     const string& sharedfile = args.vcfShared;
     const char* statfile = args.statfile.empty() ? NULL : args.statfile.c_str();
     bool pervariant = args.pervariant;
+    bool noatcg = args.noatcg;
 
     if (statfile)
         cout << "Statfile: " << statfile << endl;
@@ -249,6 +250,7 @@ int main(int argc, char *argv[]) {
     size_t MRefAltSwap = 0;
     size_t MStrandFlip = 0;
     size_t MRefAltSwapAndStrandFlip = 0;
+    size_t MATCG = 0;
     size_t MAlleleDiff = 0;
 
     // for each tested sample the number of missing and unphased sites
@@ -365,8 +367,13 @@ int main(int argc, char *argv[]) {
     if (pervariant) {
         cerr << "CHR\tPOS\tREF\tALT";
         cerr << "\tTYPED";
+        cerr << "\tref-alt/str.flip";
         cerr << "\trpMAF";
-        // TODO add header tags for additional info fields
+        cerr << "\tgterr(hard)\tgterr(soft)";
+        cerr << "\tMAE(hard)\tMAE(soft)";
+        cerr << "\tMSE(hard)\tMSE(soft)";
+        cerr << "\tr2(hard)\tr2(soft)";
+        // add header tags for additional info fields here
         cerr << endl;
     }
 
@@ -465,33 +472,61 @@ int main(int argc, char *argv[]) {
 
         // check alleles
         bool refaltswap = false;
+        bool strflip = false;
+        bool atcg = false;
         if (strcmp(tgt->d.allele[0], ref->d.allele[0]) == 0 && strcmp(tgt->d.allele[1], ref->d.allele[1]) == 0) { // all good
             // nothing to do here
-        } else if (strcmp(tgt->d.allele[0], ref->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], ref->d.allele[0]) == 0) { // switched alleles
-            refaltswap = true;
-            MRefAltSwap++;
-        } else if (reverseComplement(tgt->d.allele[0]).compare(ref->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(ref->d.allele[1]) == 0) { // strand flip
-            MStrandFlip++;
-        } else if (reverseComplement(tgt->d.allele[0]).compare(ref->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(ref->d.allele[0]) == 0) { // strand flip + switched alleles
-            refaltswap = true;
-            MRefAltSwapAndStrandFlip++;
-        } else { // different alleles -> next variant
-            MAlleleDiff++;
-            continue;
+        } else {
+            if (strcmp(tgt->d.allele[0], ref->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], ref->d.allele[0]) == 0) { // switched alleles
+                refaltswap = true;
+                MRefAltSwap++;
+            }
+            if (reverseComplement(tgt->d.allele[0]).compare(ref->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(ref->d.allele[1]) == 0) { // strand flip
+                strflip = true;
+                MStrandFlip++;
+            }
+            if (refaltswap && strflip) { // ref/alt swap and strand flip are applicable here -> likely to be an AT or CG variant
+                atcg = true;
+                MATCG++;
+                if (noatcg) // skip, if not wanted
+                    continue;
+            }
+            if (!refaltswap && !strflip && !atcg) { // if we have already identified a ref/alt swap or strand flip here, we are done
+                if (reverseComplement(tgt->d.allele[0]).compare(ref->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(ref->d.allele[0]) == 0) { // strand flip + switched alleles
+                    refaltswap = true;
+                    strflip = true;
+                    MRefAltSwapAndStrandFlip++;
+                } else { // different alleles -> next variant
+                    MAlleleDiff++;
+                    continue;
+                }
+            }
         }
 
         // check alleles also with shared vars file
         bool shd_refaltswap = false;
+        bool shd_strflip = false;
+        bool shd_atcg = false;
         if (useshared) {
             if (strcmp(tgt->d.allele[0], shd->d.allele[0]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[1]) == 0) { // all good
-            } else if (strcmp(tgt->d.allele[0], shd->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[0]) == 0) { // switched alleles
-                shd_refaltswap = true;
-            } else if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[1]) == 0) { // strand flip
-            } else if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[0]) == 0) { // strand flip + switched alleles
-                shd_refaltswap = true;
-            } else { // different alleles -> next variant
-                MAlleleDiff++;
-                continue;
+            } else {
+                if (strcmp(tgt->d.allele[0], shd->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[0]) == 0) { // switched alleles
+                    shd_refaltswap = true;
+                }
+                if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[1]) == 0) { // strand flip
+                    shd_strflip = true;
+                }
+                if (shd_refaltswap && shd_strflip)
+                    shd_atcg = true;
+                if (!shd_refaltswap && !shd_strflip && !shd_atcg) {
+                    if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[0]) == 0) { // strand flip + switched alleles
+                        shd_refaltswap = true;
+                        shd_strflip = true;
+                    } else { // different alleles -> common with reference, but not common with shared -> next variant
+                        MAlleleDiff++;
+                        continue;
+                    }
+                }
             }
         }
 
@@ -508,6 +543,16 @@ int main(int argc, char *argv[]) {
             cerr << bcf_hdr_id2name(q_hdr, tgt->rid) << "\t" << tgt->pos+1 << "\t" << tgt->d.allele[0] << "\t" << tgt->d.allele[1];
             // print TYPED information
             cerr << "\t" << ( typed ? "TRUE" : "FALSE" );
+            // print ref-alt/str.flip info
+            cerr << "\t";
+            if (atcg) {
+                cerr << "atcg";
+            } else if (refaltswap) {
+                cerr << "ref/alt";
+            } else if (strflip) {
+                cerr << "strflip";
+            } else
+                cerr << "-";
         }
 
         // check if variant is haploid
@@ -540,15 +585,15 @@ int main(int argc, char *argv[]) {
                 maf = 1.0 - af;
             // apply ref/alt swap:
             // if af is from shared file and the variant was ref/alt swapped to the query, we need to switch af now to match the query
-            if (affroms && shd_refaltswap)
+            if (affroms && shd_refaltswap) // TODO probably apply && !shd_atcg such that AF will not be switched in ATCG variants?
                 af = 1.0 - af;
             // if the query is ref/alt swapped to the reference, we need to swap the allele frequency (again)
-            if (refaltswap)
+            if (refaltswap) // TODO probably apply && !atcg such that AF will not be switched in ATCG variants?
                 af = 1.0 - af;
         }
 
         if (pervariant) {
-            // print MAF
+            // print rpMAF
             cerr << "\t" << maf;
         }
 
@@ -578,9 +623,9 @@ int main(int argc, char *argv[]) {
 
         size_t gterrsum = 0;
         double gtdoserrsum = 0;
-//        size_t gterr2sum = 0;
+        size_t gterr2sum = 0;
 //        double gtdev2sum = 0;
-//        double gtdoserr2sum = 0;
+        double gtdoserr2sum = 0;
 //        double gtdosdev2sum = 0;
 
         // check samples
@@ -638,7 +683,7 @@ int main(int argc, char *argv[]) {
             if (isnan(qdosmat)) qdosmat = qmat ? 1.0 : 0.0;
             if (isnan(qdospat)) qdospat = qpat ? 1.0 : 0.0;
 
-            // apply ref/alt swap
+            // apply ref/alt swap // TODO what happens with ATCG variants?
             if (refaltswap) {
                 qmat = !qmat;
                 qpat = !qpat;
@@ -778,14 +823,14 @@ int main(int argc, char *argv[]) {
                 gtdossumrefq += (refgt * gtdos) / (diploid ? 1 : 2);
 
                 gtdoserrsum += err;
-//                gtdoserr2sum += err*err;
+                gtdoserr2sum += err*err;
 //                double dev = diploid ? (gtdos-2*af) : (gtdos-af); // using the ref panel AF here as the "expected average genotype" (2x for diploid as a genotype average is expected)
 //                gtdosdev2sum += dev*dev;
             }
             // hard check
             int err = abs(refgt - qgt);
             gterrsum += err;
-//            gterr2sum += err*err;
+            gterr2sum += err*err;
 //            double dev =  diploid ? (qgt-2*af) : (qgt-af); // using the ref panel AF here as the "expected average genotype" (2x for diploid as a genotype average is expected)
 //            gtdev2sum += dev*dev;
             if (err) { // genotype error -> continue with next sample
@@ -841,6 +886,15 @@ int main(int argc, char *argv[]) {
                 }
             }
         } // end for every sample
+
+        if (pervariant) {
+            // print absolute genotype errors (hard + soft)
+            cerr << "\t" << gterrsum << "\t" << gtdoserrsum;
+            // print MAE (hard + soft)
+            cerr << "\t" << gterrsum/(double)Nquery << "\t" << gtdoserrsum/(double)Nquery;
+            // print MSE (hard + soft)
+            cerr << "\t" << gterr2sum/(double)Nquery << "\t" << gtdoserr2sum/(double)Nquery;
+        }
 
         // variant-wise correlation r2:
         double r2 = 0.0;
@@ -898,6 +952,11 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        if (pervariant) {
+            // print correlation r2
+            cerr << "\t" << r2 << "\t" << r2soft;
+        }
+
         if (!hapsset_ref) {
             if (Nrefhap)
                 hapsset_ref = true;
@@ -951,6 +1010,7 @@ int main(int argc, char *argv[]) {
     cout << "  Ref/Alt swaps:            " << MRefAltSwap << endl;
     cout << "  Strand flips:             " << MStrandFlip << endl;
     cout << "  Ref/Alt + Strand flip:    " << MRefAltSwapAndStrandFlip << endl;
+    cout << "  ATCGs:                    " << MATCG << endl;
     cout << endl;
 
     size_t totalRefMissing = 0;
