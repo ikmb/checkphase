@@ -486,6 +486,8 @@ int main(int argc, char *argv[]) {
                 MStrandFlip++;
             }
             if (refaltswap && strflip) { // ref/alt swap and strand flip are applicable here -> likely to be an AT or CG variant
+                refaltswap = false;
+                strflip = false;
                 atcg = true;
                 MATCG++;
                 if (noatcg) // skip, if not wanted
@@ -516,8 +518,11 @@ int main(int argc, char *argv[]) {
                 if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[1]) == 0) { // strand flip
                     shd_strflip = true;
                 }
-                if (shd_refaltswap && shd_strflip)
+                if (shd_refaltswap && shd_strflip) {
+                    shd_refaltswap = false;
+                    shd_strflip = false;
                     shd_atcg = true;
+                }
                 if (!shd_refaltswap && !shd_strflip && !shd_atcg) {
                     if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[0]) == 0) { // strand flip + switched alleles
                         shd_refaltswap = true;
@@ -585,10 +590,10 @@ int main(int argc, char *argv[]) {
                 maf = 1.0 - af;
             // apply ref/alt swap:
             // if af is from shared file and the variant was ref/alt swapped to the query, we need to switch af now to match the query
-            if (affroms && shd_refaltswap) // TODO probably apply && !shd_atcg such that AF will not be switched in ATCG variants?
+            if (affroms && shd_refaltswap)
                 af = 1.0 - af;
             // if the query is ref/alt swapped to the reference, we need to swap the allele frequency (again)
-            if (refaltswap) // TODO probably apply && !atcg such that AF will not be switched in ATCG variants?
+            if (refaltswap)
                 af = 1.0 - af;
         }
 
