@@ -134,12 +134,13 @@ int main(int argc, char *argv[]) {
     const string& queryfile = args.vcfQuery;
     const string& sharedfile = args.vcfShared;
     const char* statfile = args.statfile.empty() ? NULL : args.statfile.c_str();
-    bool dump = args.dump;
+    bool pervariant = args.pervariant;
+    bool noatcg = args.noatcg;
 
     if (statfile)
         cout << "Statfile: " << statfile << endl;
-    if (dump)
-        cout << "--dump enabled. Will dump phase error positions to stderr." << endl;
+    if (pervariant)
+        cout << "--pervariant enabled. Will print per-variant information to stderr." << endl;
     cout << endl;
 
     updateStatus(statfile, 0, 0);
@@ -229,6 +230,17 @@ int main(int argc, char *argv[]) {
     size_t Mmaf00001 = 0; // shared variants with RefPanelMAF >= 0.0001
     size_t Mtyped = 0; // shared variants with TYPED tag
 
+    size_t Mr2 = 0;
+    size_t Mr2_01 = 0;
+    size_t Mr2_001 = 0;
+    size_t Mr2_0001 = 0;
+    size_t Mr2_00001 = 0;
+    size_t Mr2soft = 0;
+    size_t Mr2soft_01 = 0;
+    size_t Mr2soft_001 = 0;
+    size_t Mr2soft_0001 = 0;
+    size_t Mr2soft_00001 = 0;
+
     int mref_gt = 0; void *ref_gt = NULL; // will be allocated once in bcf_get_genotypes() and then reused for each marker (need void* because of htslib)
     int mtgt_gt = 0; void *tgt_gt = NULL; // will be allocated once in bcf_get_genotypes() and then reused for each marker (need void* because of htslib)
     int ndosbuf = 0; void *dosbuf = NULL;
@@ -238,6 +250,7 @@ int main(int argc, char *argv[]) {
     size_t MRefAltSwap = 0;
     size_t MStrandFlip = 0;
     size_t MRefAltSwapAndStrandFlip = 0;
+    size_t MATCG = 0;
     size_t MAlleleDiff = 0;
 
     // for each tested sample the number of missing and unphased sites
@@ -259,11 +272,21 @@ int main(int argc, char *argv[]) {
     vector<size_t> gtErrors_maf001(Nquery, 0);
     vector<size_t> gtErrors_maf0001(Nquery, 0);
     vector<size_t> gtErrors_maf00001(Nquery, 0);
+    vector<size_t> gtErr2(Nquery, 0);
+    vector<size_t> gtErr2_maf01(Nquery, 0);
+    vector<size_t> gtErr2_maf001(Nquery, 0);
+    vector<size_t> gtErr2_maf0001(Nquery, 0);
+    vector<size_t> gtErr2_maf00001(Nquery, 0);
     vector<double> gtErrorsSoft(Nquery, 0.0);
     vector<double> gtErrorsSoft_maf01(Nquery, 0.0);
     vector<double> gtErrorsSoft_maf001(Nquery, 0.0);
     vector<double> gtErrorsSoft_maf0001(Nquery, 0.0);
     vector<double> gtErrorsSoft_maf00001(Nquery, 0.0);
+    vector<double> gtErr2Soft(Nquery, 0.0);
+    vector<double> gtErr2Soft_maf01(Nquery, 0.0);
+    vector<double> gtErr2Soft_maf001(Nquery, 0.0);
+    vector<double> gtErr2Soft_maf0001(Nquery, 0.0);
+    vector<double> gtErr2Soft_maf00001(Nquery, 0.0);
     // correlation r2
     vector<size_t> gtSumRef(Nquery, 0.0);
     vector<size_t> gt2SumRef(Nquery, 0.0);
@@ -316,9 +339,6 @@ int main(int argc, char *argv[]) {
     vector<double> r2SoftSum_maf0001;  // sum of per variant r2 for variants of MAF>=0.001, bins for each couple of queries
     vector<double> r2SoftSum_maf00001; // sum of per variant r2 for variants of MAF>=0.0001, bins for each couple of queries
 
-    // used only when --dump is set
-    vector<vector<size_t>> errPos(Nquery);
-
     // for counting haploid samples
     bool hapsset_ref = false;
     bool hapsset_tgt = false;
@@ -342,6 +362,20 @@ int main(int argc, char *argv[]) {
 
     // we sum up dosages in bins to compensate for numeric instability
     size_t currbin = 0;
+
+    // if per-variant information is desired, print the header
+    if (pervariant) {
+        cerr << "CHR\tPOS\tREF\tALT";
+        cerr << "\tTYPED";
+        cerr << "\tref-alt/str.flip";
+        cerr << "\trpMAF";
+        cerr << "\tgterr(hard)\tgterr(soft)";
+        cerr << "\tMAE(hard)\tMAE(soft)";
+        cerr << "\tMSE(hard)\tMSE(soft)";
+        cerr << "\tr2(hard)\tr2(soft)";
+        // add header tags for additional info fields here
+        cerr << endl;
+    }
 
     while (bcf_sr_next_line(sr)) { // read data SNP-wise in positional sorted order from query, reference and optional shared file
 
@@ -402,8 +436,8 @@ int main(int argc, char *argv[]) {
         }
         Mshared++;
 
-        // exclude monomorphic or multi-allelic markers
-        if (ref->n_allele != 2 || tgt->n_allele != 2) {
+        // exclude monomorphic or multi-allelic markers (only according to listed alleles, variants can still be monomorph if all samples contain the same genotype)
+        if (ref->n_allele != 2 || tgt->n_allele != 2 || (useshared && shd->n_allele < 2)) { // we still allow multi-allelic variants from shared file
             if (ref->n_allele != 2)
                 MrefError++;
             if (tgt->n_allele != 2)
@@ -414,16 +448,6 @@ int main(int argc, char *argv[]) {
         // decode genotypes/haplotypes
         size_t nref_gt = bcf_get_genotypes(ref_hdr, ref, &ref_gt, &mref_gt); // calls bcf_unpack() within
         size_t ntgt_gt = bcf_get_genotypes(q_hdr, tgt, &tgt_gt, &mtgt_gt); // calls bcf_unpack() within
-
-        // imputation R2
-        float maf = -1.0; // default if no MAF is present
-        if (bcf_get_info_float(q_hdr, tgt, "RefPanelAF", (void*)&af_ptr, &af_size) >= 0                      // successfully read RefPanelAF tag from query
-            || (useshared && bcf_get_info_float(s_hdr, shd, "RefPanelAF", (void*)&af_ptr, &af_size) >= 0)) { // or successfully read RefPanelAF tag from shared file
-            if (*af_ptr <= 0.5)
-                maf = *af_ptr; // if there's more than one RefPanelAF entry, take the first.
-            else
-                maf = 1.0 - *af_ptr;
-        }
 
         // genotyped or not?
         bool typed = false;
@@ -448,30 +472,67 @@ int main(int argc, char *argv[]) {
 
         // check alleles
         bool refaltswap = false;
+        bool strflip = false;
+        bool atcg = false;
         if (strcmp(tgt->d.allele[0], ref->d.allele[0]) == 0 && strcmp(tgt->d.allele[1], ref->d.allele[1]) == 0) { // all good
             // nothing to do here
-        } else if (strcmp(tgt->d.allele[0], ref->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], ref->d.allele[0]) == 0) { // switched alleles
-            refaltswap = true;
-            MRefAltSwap++;
-        } else if (reverseComplement(tgt->d.allele[0]).compare(ref->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(ref->d.allele[1]) == 0) { // strand flip
-            MStrandFlip++;
-        } else if (reverseComplement(tgt->d.allele[0]).compare(ref->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(ref->d.allele[0]) == 0) { // strand flip + switched alleles
-            refaltswap = true;
-            MRefAltSwapAndStrandFlip++;
-        } else { // different alleles -> next variant
-            MAlleleDiff++;
-            continue;
+        } else {
+            if (strcmp(tgt->d.allele[0], ref->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], ref->d.allele[0]) == 0) { // switched alleles
+                refaltswap = true;
+                MRefAltSwap++;
+            }
+            if (reverseComplement(tgt->d.allele[0]).compare(ref->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(ref->d.allele[1]) == 0) { // strand flip
+                strflip = true;
+                MStrandFlip++;
+            }
+            if (refaltswap && strflip) { // ref/alt swap and strand flip are applicable here -> likely to be an AT or CG variant
+                refaltswap = false;
+                strflip = false;
+                atcg = true;
+                MATCG++;
+                if (noatcg) // skip, if not wanted
+                    continue;
+            }
+            if (!refaltswap && !strflip && !atcg) { // if we have already identified a ref/alt swap or strand flip here, we are done
+                if (reverseComplement(tgt->d.allele[0]).compare(ref->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(ref->d.allele[0]) == 0) { // strand flip + switched alleles
+                    refaltswap = true;
+                    strflip = true;
+                    MRefAltSwapAndStrandFlip++;
+                } else { // different alleles -> next variant
+                    MAlleleDiff++;
+                    continue;
+                }
+            }
         }
 
         // check alleles also with shared vars file
+        bool shd_refaltswap = false;
+        bool shd_strflip = false;
+        bool shd_atcg = false;
         if (useshared) {
             if (strcmp(tgt->d.allele[0], shd->d.allele[0]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[1]) == 0) { // all good
-            } else if (strcmp(tgt->d.allele[0], shd->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[0]) == 0) { // switched alleles
-            } else if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[1]) == 0) { // strand flip
-            } else if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[0]) == 0) { // strand flip + switched alleles
-            } else { // different alleles -> next variant
-                MAlleleDiff++;
-                continue;
+                // nothing to do here
+            } else {
+                if (strcmp(tgt->d.allele[0], shd->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[0]) == 0) { // switched alleles
+                    shd_refaltswap = true;
+                }
+                if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[1]) == 0) { // strand flip
+                    shd_strflip = true;
+                }
+                if (shd_refaltswap && shd_strflip) {
+                    shd_refaltswap = false;
+                    shd_strflip = false;
+                    shd_atcg = true;
+                }
+                if (!shd_refaltswap && !shd_strflip && !shd_atcg) {
+                    if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[0]) == 0) { // strand flip + switched alleles
+                        shd_refaltswap = true;
+                        shd_strflip = true;
+                    } else { // different alleles -> common with reference, but not common with shared -> next variant
+                        MAlleleDiff++;
+                        continue;
+                    }
+                }
             }
         }
 
@@ -479,6 +540,25 @@ int main(int argc, char *argv[]) {
         if ((nref_gt != 2*Nref && nref_gt != Nref) || (ntgt_gt != 2*Nquery && ntgt_gt != Nquery)) {
             cerr << "ERROR: called genotype number is not as expected! nref_gt = " << nref_gt << " (expected: " << Nref << " or " << 2*Nref << ") ntgt_gt = " << ntgt_gt << " (expected: " << Nquery << " or " << 2*Nquery << ")" << endl;
             exit(EXIT_FAILURE);
+        }
+
+        // Here, we found a shared variant.
+
+        if (pervariant) {
+            // print variant information
+            cerr << bcf_hdr_id2name(q_hdr, tgt->rid) << "\t" << tgt->pos+1 << "\t" << tgt->d.allele[0] << "\t" << tgt->d.allele[1];
+            // print TYPED information
+            cerr << "\t" << ( typed ? "TRUE" : "FALSE" );
+            // print ref-alt/str.flip info
+            cerr << "\t";
+            if (atcg) {
+                cerr << "atcg";
+            } else if (refaltswap) {
+                cerr << "ref/alt";
+            } else if (strflip) {
+                cerr << "strflip";
+            } else
+                cerr << "-";
         }
 
         // check if variant is haploid
@@ -497,14 +577,40 @@ int main(int argc, char *argv[]) {
             } // else could perhaps throw an error if numbers don't match??
         }
 
+        // RefPanelAF
+        float af = -1.0; // default if no MAF is present
+        float maf = -1.0; // default if no MAF is present
+        bool affromq = bcf_get_info_float(q_hdr, tgt, "RefPanelAF", (void*)&af_ptr, &af_size) >= 0;
+        bool affroms = useshared && bcf_get_info_float(s_hdr, shd, "RefPanelAF", (void*)&af_ptr, &af_size) >= 0;
+        if ( affromq       // successfully read RefPanelAF tag from query
+            || affroms ) { // or successfully read RefPanelAF tag from shared file
+            af = *af_ptr; // if there's more than one RefPanelAF entry, take the last, which is from shared file, else it's from query.
+            if (af <= 0.5)
+                maf = af;
+            else
+                maf = 1.0 - af;
+            // apply ref/alt swap:
+            // if af is from shared file and the variant was ref/alt swapped to the query, we need to switch af now to match the query
+            if (affroms && shd_refaltswap)
+                af = 1.0 - af;
+            // if the query is ref/alt swapped to the reference, we need to swap the allele frequency (again)
+            if (refaltswap)
+                af = 1.0 - af;
+        }
+
+        if (pervariant) {
+            // print rpMAF
+            cerr << "\t" << maf;
+        }
+
         // count in MAF categories
         if (maf >= 0.1)
             Mmaf01++;
-        if (maf >= 0.01)
+        else if (maf >= 0.01)
             Mmaf001++;
-        if (maf >= 0.001)
+        else if (maf >= 0.001)
             Mmaf0001++;
-        if (maf >= 0.0001)
+        else if (maf >= 0.0001)
             Mmaf00001++;
 
         // count checked typed variants
@@ -520,6 +626,13 @@ int main(int argc, char *argv[]) {
         double gtdossumq = 0.0;
         double gtdos2sumq = 0.0;
         double gtdossumrefq = 0.0;
+
+        size_t gterrsum = 0;
+        double gtdoserrsum = 0;
+        size_t gterr2sum = 0;
+//        double gtdev2sum = 0;
+        double gtdoserr2sum = 0;
+//        double gtdosdev2sum = 0;
 
         // check samples
         for (size_t q = 0; q < Nquery; q++) {
@@ -541,6 +654,7 @@ int main(int argc, char *argv[]) {
                     MrefMissing[q]++;
                 if (bcf_gt_is_missing(qmat_i) || bcf_gt_is_missing(qpat_i))
                     MqMissing[q]++;
+                // TODO We normally do not encounter this after imputation, but this should still be considered in the error statistics!
                 continue;
             }
 
@@ -575,7 +689,7 @@ int main(int argc, char *argv[]) {
             if (isnan(qdosmat)) qdosmat = qmat ? 1.0 : 0.0;
             if (isnan(qdospat)) qdospat = qpat ? 1.0 : 0.0;
 
-            // apply ref/alt swap
+            // apply ref/alt swap // TODO what happens with ATCG variants?
             if (refaltswap) {
                 qmat = !qmat;
                 qpat = !qpat;
@@ -599,21 +713,21 @@ int main(int argc, char *argv[]) {
                 gt2SumQ_maf01[q] += qgt*qgt;
                 gtSumRefQ_maf01[q] += refgt * qgt;
             }
-            if (maf >= 0.01) {
+            else if (maf >= 0.01) {
                 gtSumRef_maf001[q] += refgt;
                 gt2SumRef_maf001[q] += refgt*refgt;
                 gtSumQ_maf001[q] += qgt;
                 gt2SumQ_maf001[q] += qgt*qgt;
                 gtSumRefQ_maf001[q] += refgt * qgt;
             }
-            if (maf >= 0.001) {
+            else if (maf >= 0.001) {
                 gtSumRef_maf0001[q] += refgt;
                 gt2SumRef_maf0001[q] += refgt*refgt;
                 gtSumQ_maf0001[q] += qgt;
                 gt2SumQ_maf0001[q] += qgt*qgt;
                 gtSumRefQ_maf0001[q] += refgt * qgt;
             }
-            if (maf >= 0.0001) {
+            else if (maf >= 0.0001) {
                 gtSumRef_maf00001[q] += refgt;
                 gt2SumRef_maf00001[q] += refgt*refgt;
                 gtSumQ_maf00001[q] += qgt;
@@ -641,39 +755,50 @@ int main(int argc, char *argv[]) {
                 double err;
                 switch (refgt) {
                 case 0: // homozygous wild
-                    //this is wrong! gtErrorsSoft[q] += diploid ? qdosmat + qdospat : qdosmat;
-                    if (!diploid)
-                        err = qdosmat;
-                    else {
-                        double gp = (1.0-qdosmat)*(1.0-qdospat); // gp0
-                        err = 1.0 - gp;
-                    }
+                    // we go for MAE, so the deviation for each strand has to be considered
+                    err = diploid ? qdosmat + qdospat : qdosmat;
+                    // this was correct if we count an error as a simple deviation from the observed genotype
+//                    if (!diploid)
+//                        err = qdosmat;
+//                    else {
+//                        double gp = (1.0-qdosmat)*(1.0-qdospat); // gp0
+//                        err = 1.0 - gp;
+//                    }
                     break;
                 case 2: // homozygous variant
-                    //this is wrong! gtErrorsSoft[q] += diploid ? 2.0 - qdosmat - qdospat : 1.0 - qdosmat;
-                    if (!diploid)
-                        err = 1.0 - qdosmat;
-                    else {
-                        double gp = qdosmat*qdospat; // gp2
-                        err = 1.0 - gp;
-                    }
+                    // we go for MAE, so the deviation for each strand has to be considered
+                    err = diploid ? 2.0 - qdosmat - qdospat : 1.0 - qdosmat;
+                    // this was correct if we count an error as a simple deviation from the observed genotype
+//                    if (!diploid)
+//                        err = 1.0 - qdosmat;
+//                    else {
+//                        double gp = qdosmat*qdospat; // gp2
+//                        err = 1.0 - gp;
+//                    }
                     break;
                 default: // heterozygous (not applicable for haploid)
-                    //this is wrong!
-                    //float err1 = 1.0 - qdosmat + qdospat; // if mat=1 and pat=0
-                    //float err2 = 1.0 - qdospat + qdosmat; // if mat=0 and pat=1
-                    //gtErrorsSoft[q] += min(err1, err2); // we count the minimum deviation as we compare only the genotype and do not consider a phase switch here
-                    err = (1.0-qdosmat)*(1.0-qdospat) + qdosmat*qdospat; // 1-gp1 = 1-(1-gp0-gp2) = gp0+gp2
+                    // we go for MAE, so the deviation for each strand has to be considered
+                    float err1 = 1.0 - qdosmat + qdospat; // if mat=1 and pat=0
+                    float err2 = 1.0 - qdospat + qdosmat; // if mat=0 and pat=1
+                    err = min(err1, err2); // we count the minimum deviation as we compare only the genotype and do not consider a phase switch here
+                    // this was correct if we count an error as a simple deviation from the observed genotype
+//                    err = (1.0-qdosmat)*(1.0-qdospat) + qdosmat*qdospat; // 1-gp1 = 1-(1-gp0-gp2) = gp0+gp2
                 }
                 gtErrorsSoft[q] += err;
-                if (maf >= 0.1)
+                gtErr2Soft[q] += err*err;
+                if (maf >= 0.1) {
                     gtErrorsSoft_maf01[q] += err;
-                if (maf >= 0.01)
+                    gtErr2Soft_maf01[q] += err*err;
+                } else if (maf >= 0.01) {
                     gtErrorsSoft_maf001[q] += err;
-                if (maf >= 0.001)
+                    gtErr2Soft_maf001[q] += err*err;
+                } else if (maf >= 0.001) {
                     gtErrorsSoft_maf0001[q] += err;
-                if (maf >= 0.0001)
+                    gtErr2Soft_maf0001[q] += err*err;
+                } else if (maf >= 0.0001) {
                     gtErrorsSoft_maf00001[q] += err;
+                    gtErr2Soft_maf00001[q] += err*err;
+                }
                 // genotype dosage = ads0 + ads1
                 double gtdos = qdosmat + (diploid ? qdospat : 0);
                 gtDosSumQ[currbin][q] += gtdos;
@@ -684,17 +809,17 @@ int main(int argc, char *argv[]) {
                     gtDos2SumQ_maf01[currbin][q] += gtdos*gtdos;
                     gtDosSumRefQ_maf01[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
                 }
-                if (maf >= 0.01) {
+                else if (maf >= 0.01) {
                     gtDosSumQ_maf001[currbin][q] += gtdos;
                     gtDos2SumQ_maf001[currbin][q] += gtdos*gtdos;
                     gtDosSumRefQ_maf001[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
                 }
-                if (maf >= 0.001) {
+                else if (maf >= 0.001) {
                     gtDosSumQ_maf0001[currbin][q] += gtdos;
                     gtDos2SumQ_maf0001[currbin][q] += gtdos*gtdos;
                     gtDosSumRefQ_maf0001[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
                 }
-                if (maf >= 0.0001) {
+                else if (maf >= 0.0001) {
                     gtDosSumQ_maf00001[currbin][q] += gtdos;
                     gtDos2SumQ_maf00001[currbin][q] += gtdos*gtdos;
                     gtDosSumRefQ_maf00001[currbin][q] += (refgt * gtdos) / (diploid ? 1 : 2); // need to reduce homozygous diploid representation back to haploid in the case of a haploid sample
@@ -703,18 +828,33 @@ int main(int argc, char *argv[]) {
                 gtdos2sumq += gtdos*gtdos;
                 gtdossumrefq += (refgt * gtdos) / (diploid ? 1 : 2);
 
+                gtdoserrsum += err;
+                gtdoserr2sum += err*err;
+//                double dev = diploid ? (gtdos-2*af) : (gtdos-af); // using the ref panel AF here as the "expected average genotype" (2x for diploid as a genotype average is expected)
+//                gtdosdev2sum += dev*dev;
             }
             // hard check
-            if (refgt != qgt) { // genotype error -> continue with next sample
-                gtErrors[q]++;
-                if (maf >= 0.1)
-                    gtErrors_maf01[q]++;
-                if (maf >= 0.01)
-                    gtErrors_maf001[q]++;
-                if (maf >= 0.001)
-                    gtErrors_maf0001[q]++;
-                if (maf >= 0.0001)
-                    gtErrors_maf00001[q]++;
+            int err = abs(refgt - qgt);
+            gterrsum += err;
+            gterr2sum += err*err;
+//            double dev =  diploid ? (qgt-2*af) : (qgt-af); // using the ref panel AF here as the "expected average genotype" (2x for diploid as a genotype average is expected)
+//            gtdev2sum += dev*dev;
+            if (err) { // genotype error -> continue with next sample
+                gtErrors[q] += err;
+                gtErr2[q] += err*err;
+                if (maf >= 0.1) {
+                    gtErrors_maf01[q] += err;
+                    gtErr2_maf01[q] += err*err;
+                } else if (maf >= 0.01) {
+                    gtErrors_maf001[q] += err;
+                    gtErr2_maf001[q] += err*err;
+                } else if (maf >= 0.001) {
+                    gtErrors_maf0001[q] += err;
+                    gtErr2_maf0001[q] += err*err;
+                } else if (maf >= 0.0001) {
+                    gtErrors_maf00001[q] += err;
+                    gtErr2_maf00001[q] += err*err;
+                }
                 continue;
             }
 
@@ -726,16 +866,12 @@ int main(int argc, char *argv[]) {
                     if (swerr) {
                         switched[q] = !switched[q];
                         switchErrors[q]++;
-                        if (dump)
-                            errPos[q].push_back(Mq-1); // error position is 0-based
                     }
                 } else { // first het site -> simply set the switched-flag according to the current phases in ref and query
                     initialized[q] = true;
                     if (refmat != qmat) {
                         switched[q] = true;
                         matPatSwitches[q] = true;
-                        if (dump)
-                            errPos[q].push_back(0); // indicates the difference at the first het, for debugging
                     }
                 }
                 if (typed) {
@@ -757,33 +893,74 @@ int main(int argc, char *argv[]) {
             }
         } // end for every sample
 
-        // variant-wise correlation r2
-        double r2 = calc_r2_hard(Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
-        if (!isnan(r2)) { // add only if it is a number, otherwise it's treated as zero
+        if (pervariant) {
+            // print absolute genotype errors (hard + soft)
+            cerr << "\t" << gterrsum << "\t" << gtdoserrsum;
+            // print MAE (hard + soft)
+            cerr << "\t" << gterrsum/(double)Nquery << "\t" << gtdoserrsum/(double)Nquery;
+            // print MSE (hard + soft)
+            cerr << "\t" << gterr2sum/(double)Nquery << "\t" << gtdoserr2sum/(double)Nquery;
+        }
+
+        // variant-wise correlation r2:
+        double r2 = 0.0;
+        // PCC-based r2:
+//        // as PCC cannot be calculated for a perfect correlation with no variance, we set r2 to 1.0 if there's no error
+//        if (gterrsum == 0)
+//            r2 = 1.0;
+//        else
+        r2 = calc_r2_hard(Nquery, gtsumref, gt2sumref, gtsumq, gt2sumq, gtsumrefq);
+//        // coefficient of determination:
+//        double r2 = 1.0 - gterr2sum / gtdev2sum;
+        if (!isnan(r2) && !isinf(r2)) { // add only if it is a number, otherwise it's treated as zero
             r2Sum[currbin] += r2;
-            if (maf >= 0.1)
+            Mr2++;
+            if (maf >= 0.1) {
                 r2Sum_maf01[currbin] += r2;
-            if (maf >= 0.01)
+                Mr2_01++;
+            } else if (maf >= 0.01) {
                 r2Sum_maf001[currbin] += r2;
-            if (maf >= 0.001)
+                Mr2_001++;
+            } else if (maf >= 0.001) {
                 r2Sum_maf0001[currbin] += r2;
-            if (maf >= 0.0001)
+                Mr2_0001++;
+            } else if (maf >= 0.0001) {
                 r2Sum_maf00001[currbin] += r2;
+                Mr2_00001++;
+            }
         }
         double r2soft = 0.0;
         if (havedosages) {
+            // PCC-based r2:
+//            // as PCC cannot be calculated for a perfect correlation with no variance, we set r2 to 1.0 if there's no error
+//            if (gtdoserrsum < 0.000001) // < epsilon
+//                r2soft = 1.0;
+//            else
             r2soft = calc_r2_soft(Nquery, gtsumref, gt2sumref, gtdossumq, gtdos2sumq, gtdossumrefq);
-            if (!isnan(r2soft)) { // add only if it is a number, otherwise it's treated as zero
+//            // coefficient of determination:
+//            r2soft = 1.0 - gtdoserr2sum / gtdosdev2sum;
+            if (!isnan(r2soft) && !isinf(r2soft)) { // add only if it is a number, otherwise it's treated as zero
                 r2SoftSum[currbin] += r2soft;
-                if (maf >= 0.1)
+                Mr2soft++;
+                if (maf >= 0.1) {
                     r2SoftSum_maf01[currbin] += r2soft;
-                if (maf >= 0.01)
+                    Mr2soft_01++;
+                } else if (maf >= 0.01) {
                     r2SoftSum_maf001[currbin] += r2soft;
-                if (maf >= 0.001)
+                    Mr2soft_001++;
+                } else if (maf >= 0.001) {
                     r2SoftSum_maf0001[currbin] += r2soft;
-                if (maf >= 0.0001)
+                    Mr2soft_0001++;
+                } else if (maf >= 0.0001) {
                     r2SoftSum_maf00001[currbin] += r2soft;
+                    Mr2soft_00001++;
+                }
             }
+        }
+
+        if (pervariant) {
+            // print correlation r2
+            cerr << "\t" << r2 << "\t" << r2soft;
         }
 
         if (!hapsset_ref) {
@@ -794,6 +971,10 @@ int main(int argc, char *argv[]) {
             if (Nqhap)
                 hapsset_tgt = true;
         } // else could perhaps throw an error if numbers don't match??
+
+        // close line in per-variant output
+        if (pervariant)
+            cerr << endl;
 
     } // end while read line
     cout << " done." << endl;
@@ -818,6 +999,11 @@ int main(int argc, char *argv[]) {
     cout << "  Checked MAF>=0.01:        " << Mmaf001 << endl;
     cout << "  Checked MAF>=0.001:       " << Mmaf0001 << endl;
     cout << "  Checked MAF>=0.0001:      " << Mmaf00001 << endl;
+    cout << "  R2 variants:              " << Mr2soft << endl;
+    cout << "  R2 variants MAF>=0.1:     " << Mr2soft_01 << endl;
+    cout << "  R2 variants MAF>=0.01:    " << Mr2soft_001 << endl;
+    cout << "  R2 variants MAF>=0.001:   " << Mr2soft_0001 << endl;
+    cout << "  R2 variants MAF>=0.0001:  " << Mr2soft_00001 << endl;
     cout << "  Checked typed variants:   " << Mtyped << endl;
     cout << endl;
 
@@ -830,6 +1016,7 @@ int main(int argc, char *argv[]) {
     cout << "  Ref/Alt swaps:            " << MRefAltSwap << endl;
     cout << "  Strand flips:             " << MStrandFlip << endl;
     cout << "  Ref/Alt + Strand flip:    " << MRefAltSwapAndStrandFlip << endl;
+    cout << "  ATCGs:                    " << MATCG << endl;
     cout << endl;
 
     size_t totalRefMissing = 0;
@@ -986,9 +1173,15 @@ int main(int argc, char *argv[]) {
         size_t totalGtErrors_maf001 = 0;
         size_t totalGtErrors_maf0001 = 0;
         size_t totalGtErrors_maf00001 = 0;
+        size_t totalGtErr2 = 0;
+        size_t totalGtErr2_maf01 = 0;
+        size_t totalGtErr2_maf001 = 0;
+        size_t totalGtErr2_maf0001 = 0;
+        size_t totalGtErr2_maf00001 = 0;
         size_t gtErrorMin = 0xffffffffffffffffull;
         size_t gtErrorMax = 0;
         // calc total errors and identify min and max
+        // NOTE: MAE is expected to be lower for haploid query samples!
         for (size_t err : gtErrors) {
             totalGtErrors += err;
             if (gtErrorMin > err) {
@@ -1006,6 +1199,16 @@ int main(int argc, char *argv[]) {
             totalGtErrors_maf0001 += err;
         for (size_t err : gtErrors_maf00001)
             totalGtErrors_maf00001 += err;
+        for (double err : gtErr2)
+            totalGtErr2 += err;
+        for (double err : gtErr2_maf01)
+            totalGtErr2_maf01 += err;
+        for (double err : gtErr2_maf001)
+            totalGtErr2_maf001 += err;
+        for (double err : gtErr2_maf0001)
+            totalGtErr2_maf0001 += err;
+        for (double err : gtErr2_maf00001)
+            totalGtErr2_maf00001 += err;
         double avgterr = totalGtErrors / (double) Nquery;
         double mingterrrate = gtErrorMin / (double)Mcheck;
         double maxgterrrate = gtErrorMax / (double)Mcheck;
@@ -1014,6 +1217,11 @@ int main(int argc, char *argv[]) {
         double avgterrrate_maf001 = totalGtErrors_maf001 / (double)(Mmaf001 * Nquery);
         double avgterrrate_maf0001 = totalGtErrors_maf0001 / (double)(Mmaf0001 * Nquery);
         double avgterrrate_maf00001 = totalGtErrors_maf00001 / (double)(Mmaf00001 * Nquery);
+        double avgterr2  = totalGtErr2 / (double)(Mcheck * Nquery);
+        double avgterr2_maf01 = totalGtErr2_maf01 / (double)(Mmaf01 * Nquery);
+        double avgterr2_maf001 = totalGtErr2_maf001 / (double)(Mmaf001 * Nquery);
+        double avgterr2_maf0001 = totalGtErr2_maf0001 / (double)(Mmaf0001 * Nquery);
+        double avgterr2_maf00001 = totalGtErr2_maf00001 / (double)(Mmaf00001 * Nquery);
         // calc standard deviation and variance for error rates
         double totgtdev2 = 0.0;
         for (size_t err : gtErrors) {
@@ -1091,6 +1299,11 @@ int main(int argc, char *argv[]) {
         cout << "    Total genotype errors (MAF>=0.01):        " << totalGtErrors_maf001 << endl;
         cout << "    Total genotype errors (MAF>=0.001):       " << totalGtErrors_maf0001 << endl;
         cout << "    Total genotype errors (MAF>=0.0001):      " << totalGtErrors_maf00001 << endl;
+        cout << "    Total squared errors:                     " << totalGtErr2 << endl;
+        cout << "    Total squared errors (MAF>=0.1):          " << totalGtErr2_maf01 << endl;
+        cout << "    Total squared errors (MAF>=0.01):         " << totalGtErr2_maf001 << endl;
+        cout << "    Total squared errors (MAF>=0.001):        " << totalGtErr2_maf0001 << endl;
+        cout << "    Total squared errors (MAF>=0.0001):       " << totalGtErr2_maf00001 << endl;
         cout << "    Minimum genotype errors:                  " << gtErrorMin << endl;
         cout << "    Maximum genotype errors:                  " << gtErrorMax << endl;
         cout << "    Average gt err per sample:                " << avgterr << endl;
@@ -1101,6 +1314,11 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (MAF>=0.01):        " << avgterrrate_maf001 << endl;
         cout << "    Average gt error rate (MAF>=0.001):       " << avgterrrate_maf0001 << endl;
         cout << "    Average gt error rate (MAF>=0.0001):      " << avgterrrate_maf00001 << endl;
+        cout << "    Mean squared error:                       " << avgterr2 << endl;
+        cout << "    Mean squared error (MAF>=0.1):            " << avgterr2_maf01 << endl;
+        cout << "    Mean squared error (MAF>=0.01):           " << avgterr2_maf001 << endl;
+        cout << "    Mean squared error (MAF>=0.001):          " << avgterr2_maf0001 << endl;
+        cout << "    Mean squared error (MAF>=0.0001):         " << avgterr2_maf00001 << endl;
         cout << "    Standard GER deviation:                   " << gerdev << endl;
         cout << "    correlation r2 (complete):                " << r2 << endl;
         cout << "    correlation r2 (complete, MAF>=0.1):      " << r2_maf01 << endl;
@@ -1128,9 +1346,15 @@ int main(int argc, char *argv[]) {
         double totalGtErrorsSoft_maf001 = 0;
         double totalGtErrorsSoft_maf0001 = 0;
         double totalGtErrorsSoft_maf00001 = 0;
+        double totalGtErr2Soft = 0;
+        double totalGtErr2Soft_maf01 = 0;
+        double totalGtErr2Soft_maf001 = 0;
+        double totalGtErr2Soft_maf0001 = 0;
+        double totalGtErr2Soft_maf00001 = 0;
         double gtErrorMinSoft = 0xffffffffffffffffull;
         double gtErrorMaxSoft = 0;
         // calc total errors and identify min and max
+        // NOTE: MAE is expected to be lower for haploid query samples!
         for (double err : gtErrorsSoft) {
             totalGtErrorsSoft += err;
             if (gtErrorMinSoft > err) {
@@ -1148,6 +1372,16 @@ int main(int argc, char *argv[]) {
             totalGtErrorsSoft_maf0001 += err;
         for (double err : gtErrorsSoft_maf00001)
             totalGtErrorsSoft_maf00001 += err;
+        for (double err : gtErr2Soft)
+            totalGtErr2Soft += err;
+        for (double err : gtErr2Soft_maf01)
+            totalGtErr2Soft_maf01 += err;
+        for (double err : gtErr2Soft_maf001)
+            totalGtErr2Soft_maf001 += err;
+        for (double err : gtErr2Soft_maf0001)
+            totalGtErr2Soft_maf0001 += err;
+        for (double err : gtErr2Soft_maf00001)
+            totalGtErr2Soft_maf00001 += err;
         double avgterr = totalGtErrorsSoft / (double) Nquery;
         double mingterrrate = gtErrorMinSoft / (double)Mcheck;
         double maxgterrrate = gtErrorMaxSoft / (double)Mcheck;
@@ -1156,6 +1390,11 @@ int main(int argc, char *argv[]) {
         double avgterrrate_maf001 = totalGtErrorsSoft_maf001 / (double)(Mmaf001 * Nquery);
         double avgterrrate_maf0001 = totalGtErrorsSoft_maf0001 / (double)(Mmaf0001 * Nquery);
         double avgterrrate_maf00001 = totalGtErrorsSoft_maf00001 / (double)(Mmaf00001 * Nquery);
+        double avgterr2  = totalGtErr2Soft / (double)(Mcheck * Nquery);
+        double avgterr2_maf01 = totalGtErr2Soft_maf01 / (double)(Mmaf01 * Nquery);
+        double avgterr2_maf001 = totalGtErr2Soft_maf001 / (double)(Mmaf001 * Nquery);
+        double avgterr2_maf0001 = totalGtErr2Soft_maf0001 / (double)(Mmaf0001 * Nquery);
+        double avgterr2_maf00001 = totalGtErr2Soft_maf00001 / (double)(Mmaf00001 * Nquery);
         // calc standard deviation and variance for error rates
         double totgtdev2 = 0.0;
         for (double err : gtErrorsSoft) {
@@ -1233,6 +1472,11 @@ int main(int argc, char *argv[]) {
         cout << "    Total genotype errors (MAF>=0.01) (soft):        " << totalGtErrorsSoft_maf001 << endl;
         cout << "    Total genotype errors (MAF>=0.001) (soft):       " << totalGtErrorsSoft_maf0001 << endl;
         cout << "    Total genotype errors (MAF>=0.0001) (soft):      " << totalGtErrorsSoft_maf00001 << endl;
+        cout << "    Total squared errors (soft):                     " << totalGtErr2Soft << endl;
+        cout << "    Total squared errors (MAF>=0.1) (soft):          " << totalGtErr2Soft_maf01 << endl;
+        cout << "    Total squared errors (MAF>=0.01) (soft):         " << totalGtErr2Soft_maf001 << endl;
+        cout << "    Total squared errors (MAF>=0.001) (soft):        " << totalGtErr2Soft_maf0001 << endl;
+        cout << "    Total squared errors (MAF>=0.0001) (soft):       " << totalGtErr2Soft_maf00001 << endl;
         cout << "    Minimum genotype errors (soft):                  " << gtErrorMinSoft << endl;
         cout << "    Maximum genotype errors (soft):                  " << gtErrorMaxSoft << endl;
         cout << "    Average gt err per sample (soft):                " << avgterr << endl;
@@ -1243,6 +1487,11 @@ int main(int argc, char *argv[]) {
         cout << "    Average gt error rate (MAF>=0.01) (soft):        " << avgterrrate_maf001 << endl;
         cout << "    Average gt error rate (MAF>=0.001) (soft):       " << avgterrrate_maf0001 << endl;
         cout << "    Average gt error rate (MAF>=0.0001) (soft):      " << avgterrrate_maf00001 << endl;
+        cout << "    Mean squared error (soft):                       " << avgterr2 << endl;
+        cout << "    Mean squared error (MAF>=0.1) (soft):            " << avgterr2_maf01 << endl;
+        cout << "    Mean squared error (MAF>=0.01) (soft):           " << avgterr2_maf001 << endl;
+        cout << "    Mean squared error (MAF>=0.001) (soft):          " << avgterr2_maf0001 << endl;
+        cout << "    Mean squared error (MAF>=0.0001) (soft):         " << avgterr2_maf00001 << endl;
         cout << "    Standard GER deviation (soft):                   " << gerdev << endl;
         cout << "    correlation r2 (complete) (soft):                " << r2 << endl;
         cout << "    correlation r2 (complete, MAF>=0.1) (soft):      " << r2_maf01 << endl;
@@ -1291,8 +1540,6 @@ int main(int argc, char *argv[]) {
         double serdev = sqrt(servar);
 
         // tab-delimited list of queryID, mat/pat switched?, # swerrs, comma-separated list of sw error positions
-        if (dump)
-            cout << "Switch error positions (0-based) to cerr..." << endl;
         size_t errfree = 0;
         size_t matpatswitches = 0;
         for (size_t q = 0; q < Nquery; q++) {
@@ -1303,19 +1550,7 @@ int main(int argc, char *argv[]) {
             if (matpatsw) { // mat/pat switch
                 matpatswitches++;
             }
-            if (dump) {
-                const auto &ep = errPos[q];
-                cerr << q << "\t" << (matpatsw ? 1 : 0) << "\t" << (matpatsw ? (ep.size()-1) : ep.size()) << "\t";
-                auto epit = ep.begin();
-                if (matpatsw)
-                    epit++; // jump over the zero encoding the matpat switch
-                for (; epit != ep.end(); epit++)
-                    cerr << *epit << ",";
-                cerr << endl;
-            }
         }
-        if (dump)
-            cout << " done.\n" << endl;
 
         cout << "  Switch errors:" << endl;
         cout << "    Total switch errors:       " << totalSwErrors << endl;

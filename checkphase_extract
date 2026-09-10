@@ -52,6 +52,11 @@ gawk 'BEGIN {
  Avgterr_maf001="Average gt error rate (MAF>=0.01)"
  Avgterr_maf0001="Average gt error rate (MAF>=0.001)"
  Avgterr_maf00001="Average gt error rate (MAF>=0.0001)"
+ Avgterr2="Mean squared error"
+ Avgterr2_maf01="Mean squared error (MAF>=0.1)"
+ Avgterr2_maf001="Mean squared error (MAF>=0.01)"
+ Avgterr2_maf0001="Mean squared error (MAF>=0.001)"
+ Avgterr2_maf00001="Mean squared error (MAF>=0.0001)"
  Corr2_compl="correlation r2 (complete)"
  Corr2_compl_maf01="correlation r2 (complete, MAF>=0.1)"
  Corr2_compl_maf001="correlation r2 (complete, MAF>=0.01)"
@@ -73,6 +78,11 @@ gawk 'BEGIN {
  Avgterr_soft_maf001="Average gt error rate (MAF>=0.01) (soft)"
  Avgterr_soft_maf0001="Average gt error rate (MAF>=0.001) (soft)"
  Avgterr_soft_maf00001="Average gt error rate (MAF>=0.0001) (soft)"
+ Avgterr2_soft="Mean squared error (soft)"
+ Avgterr2_soft_maf01="Mean squared error (MAF>=0.1) (soft)"
+ Avgterr2_soft_maf001="Mean squared error (MAF>=0.01) (soft)"
+ Avgterr2_soft_maf0001="Mean squared error (MAF>=0.001) (soft)"
+ Avgterr2_soft_maf00001="Mean squared error (MAF>=0.0001) (soft)"
  Corr2_compl_soft="correlation r2 (complete) (soft)"
  Corr2_compl_soft_maf01="correlation r2 (complete, MAF>=0.1) (soft)"
  Corr2_compl_soft_maf001="correlation r2 (complete, MAF>=0.01) (soft)"
@@ -119,11 +129,21 @@ gawk 'BEGIN {
 /Average gt error rate \(MAF>=0.01\):/{Avgterr_maf001=(Avgterr_maf001 "\t" $6); next}
 /Average gt error rate \(MAF>=0.001\):/{Avgterr_maf0001=(Avgterr_maf0001 "\t" $6); next}
 /Average gt error rate \(MAF>=0.0001\):/{Avgterr_maf00001=(Avgterr_maf00001 "\t" $6); next}
+/Mean squared error:/{Avgterr2=(Avgterr2 "\t" $4); next}
+/Mean squared error \(MAF>=0.1\):/{Avgterr2_maf01=(Avgterr2_maf01 "\t" $5); next}
+/Mean squared error \(MAF>=0.01\):/{Avgterr2_maf001=(Avgterr2_maf001 "\t" $5); next}
+/Mean squared error \(MAF>=0.001\):/{Avgterr2_maf0001=(Avgterr2_maf0001 "\t" $5); next}
+/Mean squared error \(MAF>=0.0001\):/{Avgterr2_maf00001=(Avgterr2_maf00001 "\t" $5); next}
 /Average gt error rate \(soft\):/{Avgterr_soft=(Avgterr_soft "\t" $6); next}
 /Average gt error rate \(MAF>=0.1\) \(soft\):/{Avgterr_soft_maf01=(Avgterr_soft_maf01 "\t" $7); next}
 /Average gt error rate \(MAF>=0.01\) \(soft\):/{Avgterr_soft_maf001=(Avgterr_soft_maf001 "\t" $7); next}
 /Average gt error rate \(MAF>=0.001\) \(soft\):/{Avgterr_soft_maf0001=(Avgterr_soft_maf0001 "\t" $7); next}
 /Average gt error rate \(MAF>=0.0001\) \(soft\):/{Avgterr_soft_maf00001=(Avgterr_soft_maf00001 "\t" $7); next}
+/Mean squared error \(soft\):/{Avgterr2_soft=(Avgterr2_soft "\t" $5); next}
+/Mean squared error \(MAF>=0.1\) \(soft\):/{Avgterr2_soft_maf01=(Avgterr2_soft_maf01 "\t" $6); next}
+/Mean squared error \(MAF>=0.01\) \(soft\):/{Avgterr2_soft_maf001=(Avgterr2_soft_maf001 "\t" $6); next}
+/Mean squared error \(MAF>=0.001\) \(soft\):/{Avgterr2_soft_maf0001=(Avgterr2_soft_maf0001 "\t" $6); next}
+/Mean squared error \(MAF>=0.0001\) \(soft\):/{Avgterr2_soft_maf00001=(Avgterr2_soft_maf00001 "\t" $6); next}
 /Average sw error rate:/{Avswerr=(Avswerr "\t" $5); next}
 /Average sw error rate \(typed\):/{Avswerr_typed=(Avswerr_typed "\t" $6); next}
 
@@ -170,6 +190,11 @@ print Avgterr_maf01
 print Avgterr_maf001
 print Avgterr_maf0001
 print Avgterr_maf00001
+print Avgterr2
+print Avgterr2_maf01
+print Avgterr2_maf001
+print Avgterr2_maf0001
+print Avgterr2_maf00001
 print Corr2_compl
 print Corr2_compl_maf01
 print Corr2_compl_maf001
@@ -191,6 +216,11 @@ print Avgterr_soft_maf01
 print Avgterr_soft_maf001
 print Avgterr_soft_maf0001
 print Avgterr_soft_maf00001
+print Avgterr2_soft
+print Avgterr2_soft_maf01
+print Avgterr2_soft_maf001
+print Avgterr2_soft_maf0001
+print Avgterr2_soft_maf00001
 print Corr2_compl_soft
 print Corr2_compl_soft_maf01
 print Corr2_compl_soft_maf001
