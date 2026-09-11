@@ -442,6 +442,8 @@ int main(int argc, char *argv[]) {
                 MrefError++;
             if (tgt->n_allele != 2)
                 MqError++;
+            if (useshared && shd->n_allele < 2) // potential common target and ref, but shared will not match as it is monomorph
+                MAlleleDiff++;
             continue;
         }
 
@@ -475,7 +477,14 @@ int main(int argc, char *argv[]) {
         bool strflip = false;
         bool atcg = false;
         if (strcmp(tgt->d.allele[0], ref->d.allele[0]) == 0 && strcmp(tgt->d.allele[1], ref->d.allele[1]) == 0) { // all good
-            // nothing to do here
+            // ...but if this is an ATCG variant, it will remain unnoticed
+            // so, we check if applying a ref/alt swap and strand flip at the same time will lead to the same result
+            if (reverseComplement(tgt->d.allele[0]).compare(ref->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(ref->d.allele[0]) == 0) {
+                atcg = true;
+                MATCG++;
+                if (noatcg) // skip, if not wanted
+                    continue;
+            }
         } else {
             if (strcmp(tgt->d.allele[0], ref->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], ref->d.allele[0]) == 0) { // switched alleles
                 refaltswap = true;
@@ -486,8 +495,9 @@ int main(int argc, char *argv[]) {
                 MStrandFlip++;
             }
             if (refaltswap && strflip) { // ref/alt swap and strand flip are applicable here -> likely to be an AT or CG variant
-                refaltswap = false;
-                strflip = false;
+                // we know that the alleles are not equal here, so they must either be ref/alt swapped or strand flipped, so we leave the flags set
+                //refaltswap = false;
+                //strflip = false;
                 atcg = true;
                 MATCG++;
                 if (noatcg) // skip, if not wanted
@@ -511,7 +521,10 @@ int main(int argc, char *argv[]) {
         bool shd_atcg = false;
         if (useshared) {
             if (strcmp(tgt->d.allele[0], shd->d.allele[0]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[1]) == 0) { // all good
-                // nothing to do here
+                // ...but if this is an ATCG variant, it will remain unnoticed
+                // so, we check if applying a ref/alt swap and strand flip at the same time will lead to the same result
+                if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[1]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[0]) == 0)
+                    shd_atcg = true;
             } else {
                 if (strcmp(tgt->d.allele[0], shd->d.allele[1]) == 0 && strcmp(tgt->d.allele[1], shd->d.allele[0]) == 0) { // switched alleles
                     shd_refaltswap = true;
@@ -519,9 +532,10 @@ int main(int argc, char *argv[]) {
                 if (reverseComplement(tgt->d.allele[0]).compare(shd->d.allele[0]) == 0 && reverseComplement(tgt->d.allele[1]).compare(shd->d.allele[1]) == 0) { // strand flip
                     shd_strflip = true;
                 }
-                if (shd_refaltswap && shd_strflip) {
-                    shd_refaltswap = false;
-                    shd_strflip = false;
+                if (shd_refaltswap && shd_strflip) { // AT or CG variant
+                    // we know that the alleles are not equal here, so they must either be ref/alt swapped or strand flipped, so we leave the flags set
+                    //shd_refaltswap = false;
+                    //shd_strflip = false;
                     shd_atcg = true;
                 }
                 if (!shd_refaltswap && !shd_strflip && !shd_atcg) {
@@ -1623,12 +1637,11 @@ int main(int argc, char *argv[]) {
     samplefile += ".checkphase.samples";
     ofstream ofs(samplefile);
     ofs << "Checked variants:\t" << Mcheck << endl;
-    if (havetyped)
-        ofs << "Checked typed variants:\t" << Mtyped << endl;
+    ofs << "Checked typed variants:\t" << Mtyped << endl;
     // header
-    ofs << "Idx\tSwerr\tGterr_hard\tGterr_soft" << endl;
+    ofs << "Idx\tSwerr\tSwerr_typed\tGterr_hard\tGterr_soft" << endl;
     for (size_t q = 0; q < Nquery; q++) {
-        ofs << q << "\t" << switchErrors[q] << "\t" << gtErrors[q] << "\t" << gtErrorsSoft[q] << endl;
+        ofs << q << "\t" << switchErrors[q] << "\t" << switchErrors_typed[q] << "\t" << gtErrors[q] << "\t" << gtErrorsSoft[q] << endl;
     }
     ofs.close();
 
